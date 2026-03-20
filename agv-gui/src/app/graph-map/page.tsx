@@ -32,7 +32,7 @@ export default function GraphMapPage() {
       </div>
 
       <div style={{ height: "100vh", width: "100%" }}>
-        <ReactFlow nodes={initialNodes}>
+        <ReactFlow nodes={initialNodes} colorMode="light">
           <Background />
           <Controls />
         </ReactFlow>
