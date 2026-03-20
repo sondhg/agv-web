@@ -1,0 +1,8 @@
+manufacturer,serial_number,description,protocol_version,current_map_id
+KUKA,AGV-001,Main warehouse AGV for pallet transport,2.1.0,warehouse_map_v1
+ABB,AGV-002,Assembly line material transport,2.0.0,assembly_map_v2
+Siemens,AGV-003,Finished goods transport vehicle,2.1.0,warehouse_map_v1
+KUKA,AGV-004,Heavy-duty forklift AGV,2.1.0,warehouse_map_v1
+Toyota,AGV-005,Lightweight material handler,2.0.0,assembly_map_v2
+Omron,AGV-006,Inspection and delivery robot,2.1.0,inspection_map_v1
+MiR,AGV-007,Mobile industrial robot for flexible tasks,2.1.0,warehouse_map_v1

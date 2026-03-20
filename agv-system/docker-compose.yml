@@ -1,0 +1,67 @@
+services:
+  # 1. Database (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=agv_db
+      - POSTGRES_USER=agv_user
+      - POSTGRES_PASSWORD=agv_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # 2. MQTT Broker (Mosquitto)
+  mqtt:
+    image: eclipse-mosquitto:2
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - "1884:1883"     # Lưu ý: Bên ngoài (Mock AGV) dùng 1884, Bên trong (Django) dùng 1883
+      - "9001:9001"     # Websocket
+
+  # 3. Django Web Server (API + Admin)
+  web:
+    build: ./backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app  # Hot-reload code
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - mqtt
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - DB_HOST=db
+      - DB_NAME=agv_db
+      - DB_USER=agv_user
+      - DB_PASS=agv_password
+      - MQTT_BROKER=mqtt
+      - MQTT_PORT=1883  # Port nội bộ docker là 1883
+
+  # 4. MQTT Worker (Xử lý logic nền: Nghe State, Dispatch Order)
+  mqtt_worker:
+    build: ./backend
+    # Đây là lệnh gọi file listener chúng ta vừa viết xong
+    command: python manage.py run_mqtt_listener
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - mqtt
+      # Không nhất thiết phải depend on web, nhưng để db khởi động xong là được
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - DB_HOST=db
+      - DB_NAME=agv_db
+      - DB_USER=agv_user
+      - DB_PASS=agv_password
+      - MQTT_BROKER=mqtt
+      - MQTT_PORT=1883
+    restart: always # Tự khởi động lại nếu bị crash hoặc db chưa sẵn sàng
+
+volumes:
+  postgres_data:
