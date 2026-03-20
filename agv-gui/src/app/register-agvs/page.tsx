@@ -117,7 +117,7 @@ export default function RegisterAgvPage() {
           />
           <Button
             onClick={handleButtonClick}
-            className="cursor-pointer gap-2"
+            className="gap-2"
             disabled={isUploading}
           >
             {isUploading ? (
