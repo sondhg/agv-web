@@ -3,6 +3,7 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  MarkerType,
   MiniMap,
   Panel,
   Position,
@@ -12,6 +13,7 @@ import {
   useEdgesState,
   useNodesState,
   useReactFlow,
+  type Edge,
   type Node,
   type OnConnect,
   type OnConnectEnd,
@@ -43,6 +45,7 @@ const initialNodes: Node[] = [
   },
 ]
 
+const initialEdges: Edge[] = []
 let id = 1
 const getId = () => `${id++}`
 const nodeOrigin = [0.5, 0]
@@ -51,10 +54,21 @@ const AddNodeOnEdgeDrop = () => {
   const reactFlowWrapper = useRef(null)
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const { screenToFlowPosition } = useReactFlow()
   const onConnect: OnConnect = useCallback(
-    (params) => setEdges((eds) => addEdge(params, eds)),
+    (params) =>
+      setEdges((eds) =>
+        addEdge(
+          {
+            ...params,
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+          },
+          eds
+        )
+      ),
     []
   )
 
@@ -79,7 +93,14 @@ const AddNodeOnEdgeDrop = () => {
 
         setNodes((nds) => nds.concat(newNode))
         setEdges((eds) =>
-          eds.concat({ id, source: connectionState.fromNode.id, target: id })
+          eds.concat({
+            id,
+            source: connectionState.fromNode.id,
+            target: id,
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+            },
+          })
         )
       }
     },
