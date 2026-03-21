@@ -1,4 +1,5 @@
-import ProviderFlow from "./provider-flow"
+import { GuideAlerts } from "./guide-alerts"
+import { ProviderFlow } from "./provider-flow"
 
 export default function GraphMapPage() {
   return (
@@ -9,13 +10,7 @@ export default function GraphMapPage() {
           Create graph map to mimic real warehouse environment.
         </p>
       </div>
-
-      <div className="rounded-lg border bg-card p-6">
-        <p className="text-muted-foreground">
-          Click to create nodes, then click on a node and drag to another node
-          to create edges.
-        </p>
-      </div>
+      <GuideAlerts />
       {/* Needs height and width specified for ReactFlow */}
       <div className="h-screen w-full border-2 border-black">
         <ProviderFlow />
