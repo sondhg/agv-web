@@ -108,10 +108,10 @@ export async function deleteAgv(serialNumber: string): Promise<void> {
  */
 export async function deleteAllAgvs(): Promise<void> {
   const existingAgvs = await fetchAgvs()
-  
+
   // Delete by serial number, but handle duplicates gracefully
   const processedSerials = new Set<string>()
-  
+
   for (const agv of existingAgvs) {
     if (!processedSerials.has(agv.serial_number)) {
       try {
@@ -123,11 +123,13 @@ export async function deleteAllAgvs(): Promise<void> {
       }
     }
   }
-  
+
   // Verify all AGVs are deleted by checking the count
   const remainingAgvs = await fetchAgvs()
   if (remainingAgvs.length > 0) {
-    throw new Error(`Failed to delete all AGVs. ${remainingAgvs.length} AGVs remain.`)
+    throw new Error(
+      `Failed to delete all AGVs. ${remainingAgvs.length} AGVs remain.`
+    )
   }
 }
 
@@ -136,9 +138,7 @@ export async function deleteAllAgvs(): Promise<void> {
  * 1. Delete all existing AGVs
  * 2. Create all AGVs from CSV
  */
-export async function replaceAllAgvs(
-  agvs: Omit<Agv, "id">[]
-): Promise<{
+export async function replaceAllAgvs(agvs: Omit<Agv, "id">[]): Promise<{
   success: boolean
   created: number
   error?: string
@@ -161,5 +161,217 @@ export async function replaceAllAgvs(
       created: 0,
       error: error instanceof Error ? error.message : String(error),
     }
+  }
+}
+
+// ============================================
+// GRAPH API
+// ============================================
+
+export interface GraphNode {
+  id: number
+  node_id: string
+  map_id: string
+  x: number
+  y: number
+  theta: number
+  description: string
+}
+
+export interface GraphEdge {
+  id: number
+  start_node: GraphNode
+  end_node: GraphNode
+  start_node_id?: string
+  end_node_id?: string
+  map_id: string
+  length: number
+  max_velocity: number
+  is_directed: boolean
+}
+
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+}
+
+/**
+ * Fetch all graph nodes
+ */
+export async function fetchGraphNodes(
+  mapId: string = "map_1"
+): Promise<GraphNode[]> {
+  const response = await fetch(`${API_BASE_URL}/graph/nodes/?map_id=${mapId}`)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch graph nodes: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetch all graph edges
+ */
+export async function fetchGraphEdges(
+  mapId: string = "map_1"
+): Promise<GraphEdge[]> {
+  const response = await fetch(`${API_BASE_URL}/graph/edges/?map_id=${mapId}`)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch graph edges: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetch complete graph (nodes + edges)
+ */
+export async function fetchGraph(mapId: string = "map_1"): Promise<GraphData> {
+  const [nodes, edges] = await Promise.all([
+    fetchGraphNodes(mapId),
+    fetchGraphEdges(mapId),
+  ])
+
+  return { nodes, edges }
+}
+
+/**
+ * Create a new graph node
+ */
+export async function createGraphNode(
+  node: Omit<GraphNode, "id">
+): Promise<GraphNode> {
+  const response = await fetch(`${API_BASE_URL}/graph/nodes/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(node),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to create node: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Update an existing graph node
+ */
+export async function updateGraphNode(
+  id: number,
+  node: Partial<GraphNode>
+): Promise<GraphNode> {
+  const response = await fetch(`${API_BASE_URL}/graph/nodes/${id}/`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(node),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to update node: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Delete a graph node
+ */
+export async function deleteGraphNode(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/graph/nodes/${id}/`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to delete node: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+}
+
+/**
+ * Create a new graph edge
+ */
+export async function createGraphEdge(edge: {
+  start_node_id: string
+  end_node_id: string
+  map_id: string
+  max_velocity?: number
+  is_directed?: boolean
+}): Promise<GraphEdge> {
+  const response = await fetch(`${API_BASE_URL}/graph/edges/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(edge),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to create edge: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Update an existing graph edge
+ */
+export async function updateGraphEdge(
+  id: number,
+  edge: Partial<{
+    start_node_id: string
+    end_node_id: string
+    max_velocity: number
+    is_directed: boolean
+  }>
+): Promise<GraphEdge> {
+  const response = await fetch(`${API_BASE_URL}/graph/edges/${id}/`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(edge),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to update edge: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Delete a graph edge
+ */
+export async function deleteGraphEdge(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/graph/edges/${id}/`, {
+    method: "DELETE",
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Failed to delete edge: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
   }
 }
