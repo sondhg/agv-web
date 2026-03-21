@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Background,
@@ -6,58 +5,105 @@ import {
   Controls,
   MiniMap,
   Panel,
+  Position,
   ReactFlow,
   ReactFlowProvider,
   addEdge,
   useEdgesState,
   useNodesState,
+  useReactFlow,
+  type Node,
+  type OnConnect,
+  type OnConnectEnd,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
+import { useCallback, useRef, useState } from "react"
 
-const initialNodes = [
-  {
-    id: "1",
-    data: { label: "Node 1" },
-    position: { x: 250, y: 5 },
+const nodeDefaults = {
+  sourcePosition: Position.Right,
+  targetPosition: Position.Left,
+  style: {
+    borderRadius: "100%",
+    backgroundColor: "#fff",
+    width: 50,
+    height: 50,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  { id: "2", data: { label: "Node 2" }, position: { x: 100, y: 100 } },
-  { id: "3", data: { label: "Node 3" }, position: { x: 400, y: 100 } },
-  { id: "4", data: { label: "Node 4" }, position: { x: 400, y: 200 } },
+}
+
+const initialNodes: Node[] = [
+  {
+    id: "0",
+    type: "input",
+    data: { label: "Node" },
+    position: { x: 0, y: 50 },
+    ...nodeDefaults,
+  },
 ]
 
-const initialEdges = [
-  {
-    id: "e1-2",
-    source: "1",
-    target: "2",
-  },
-  { id: "e1-3", source: "1", target: "3" },
-]
+let id = 1
+const getId = () => `${id++}`
+const nodeOrigin = [0.5, 0]
 
-const ProviderFlow = () => {
+const AddNodeOnEdgeDrop = () => {
+  const reactFlowWrapper = useRef(null)
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const { screenToFlowPosition } = useReactFlow()
+  const onConnect: OnConnect = useCallback(
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    []
+  )
+
+  const onConnectEnd: OnConnectEnd = useCallback(
+    (event, connectionState) => {
+      // when a connection is dropped on the pane it's not valid
+      if (!connectionState.isValid) {
+        // we need to remove the wrapper bounds, in order to get the correct position
+        const id = getId()
+        const { clientX, clientY } =
+          "changedTouches" in event ? event.changedTouches[0] : event
+        const newNode = {
+          id,
+          position: screenToFlowPosition({
+            x: clientX,
+            y: clientY,
+          }),
+          data: { label: `Node ${id}` },
+          origin: [0.5, 0.0],
+          ...nodeDefaults,
+        }
+
+        setNodes((nds) => nds.concat(newNode))
+        setEdges((eds) =>
+          eds.concat({ id, source: connectionState.fromNode.id, target: id })
+        )
+      }
+    },
+    [screenToFlowPosition]
+  )
+
   const [backgroundVariant, setBackgroundVariant] = useState(
     BackgroundVariant.Dots
   )
 
-  const [nodes, , onNodesChange] = useNodesState(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
-  const onConnect = useCallback(
-    (params) => setEdges((els) => addEdge(params, els)),
-    []
-  )
-
   return (
-    <ReactFlowProvider>
+    <div className="flex h-full" ref={reactFlowWrapper}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        // fitView
+        onConnectEnd={onConnectEnd}
+        fitView
+        fitViewOptions={{ padding: 2 }}
+        nodeOrigin={nodeOrigin}
       >
         <MiniMap nodeStrokeWidth={3} zoomable pannable />
-        <Background variant={backgroundVariant} />
         <Panel>
           <div>Change background grid:</div>
           <div className="flex gap-2">
@@ -69,9 +115,14 @@ const ProviderFlow = () => {
           </div>
         </Panel>
         <Controls />
+        <Background variant={backgroundVariant} />
       </ReactFlow>
-    </ReactFlowProvider>
+    </div>
   )
 }
 
-export default ProviderFlow
+export default () => (
+  <ReactFlowProvider>
+    <AddNodeOnEdgeDrop />
+  </ReactFlowProvider>
+)
