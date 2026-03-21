@@ -20,6 +20,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { useCallback, useRef, useState } from "react"
+import Sidebar from "./sidebar"
 
 const nodeDefaults = {
   sourcePosition: Position.Right,
@@ -112,32 +113,35 @@ const AddNodeOnEdgeDrop = () => {
   )
 
   return (
-    <div className="flex h-full" ref={reactFlowWrapper}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onConnectEnd={onConnectEnd}
-        fitView
-        fitViewOptions={{ padding: 2 }}
-        nodeOrigin={nodeOrigin}
-      >
-        <MiniMap nodeStrokeWidth={3} zoomable pannable />
-        <Panel>
-          <div>Change background grid:</div>
-          <div className="flex gap-2">
-            {Object.values(BackgroundVariant).map((v) => (
-              <Button key={v} onClick={() => setBackgroundVariant(v)}>
-                {v}
-              </Button>
-            ))}
-          </div>
-        </Panel>
-        <Controls />
-        <Background variant={backgroundVariant} />
-      </ReactFlow>
+    <div className="flex h-full flex-col md:flex-row" ref={reactFlowWrapper}>
+      <div className="flex-1">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onConnectEnd={onConnectEnd}
+          fitView
+          fitViewOptions={{ padding: 2 }}
+          nodeOrigin={nodeOrigin}
+        >
+          <MiniMap nodeStrokeWidth={3} zoomable pannable />
+          <Panel>
+            <div>Change background grid:</div>
+            <div className="flex gap-2">
+              {Object.values(BackgroundVariant).map((v) => (
+                <Button key={v} onClick={() => setBackgroundVariant(v)}>
+                  {v}
+                </Button>
+              ))}
+            </div>
+          </Panel>
+          <Controls />
+          <Background variant={backgroundVariant} />
+        </ReactFlow>
+      </div>
+      <Sidebar nodes={nodes} setNodes={setNodes} />
     </div>
   )
 }
