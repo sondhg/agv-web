@@ -491,8 +491,10 @@ const AddNodeOnEdgeDrop = () => {
   )
 }
 
-export default () => (
-  <ReactFlowProvider>
-    <AddNodeOnEdgeDrop />
-  </ReactFlowProvider>
-)
+export function ProviderFlow() {
+  return (
+    <ReactFlowProvider>
+      <AddNodeOnEdgeDrop />
+    </ReactFlowProvider>
+  )
+}
