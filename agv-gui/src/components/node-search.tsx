@@ -1,11 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState } from "react"
 
 import {
   BuiltInEdge,
   useReactFlow,
   type Node,
   type PanelProps,
-} from "@xyflow/react";
+} from "@xyflow/react"
 
 import {
   Command,
@@ -15,17 +15,17 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
+} from "@/components/ui/command"
 
 export interface NodeSearchProps extends Omit<PanelProps, "children"> {
   // The function to search for nodes, should return an array of nodes that match the search string
   // By default, it will check for lowercase string inclusion.
-  onSearch?: (searchString: string) => Node[];
+  onSearch?: (searchString: string) => Node[]
   // The function to select a node, should set the node as selected and fit the view to the node
   // By default, it will set the node as selected and fit the view to the node.
-  onSelectNode?: (node: Node) => void;
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
+  onSelectNode?: (node: Node) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function NodeSearchInternal({
@@ -36,52 +36,52 @@ export function NodeSearchInternal({
   onOpenChange,
   ...props
 }: NodeSearchProps) {
-  const [searchResults, setSearchResults] = useState<Node[]>([]);
-  const [searchString, setSearchString] = useState<string>("");
-  const { getNodes, fitView, setNodes } = useReactFlow<Node, BuiltInEdge>();
+  const [searchResults, setSearchResults] = useState<Node[]>([])
+  const [searchString, setSearchString] = useState<string>("")
+  const { getNodes, fitView, setNodes } = useReactFlow<Node, BuiltInEdge>()
 
   const defaultOnSearch = useCallback(
     (searchString: string) => {
-      const nodes = getNodes();
+      const nodes = getNodes()
       return nodes.filter((node) =>
         (node.data.label as string)
           .toLowerCase()
-          .includes(searchString.toLowerCase()),
-      );
+          .includes(searchString.toLowerCase())
+      )
     },
-    [getNodes],
-  );
+    [getNodes]
+  )
 
   const onChange = useCallback(
     (searchString: string) => {
-      setSearchString(searchString);
+      setSearchString(searchString)
       if (searchString.length > 0) {
-        onOpenChange?.(true);
-        const results = (onSearch || defaultOnSearch)(searchString);
-        setSearchResults(results);
+        onOpenChange?.(true)
+        const results = (onSearch || defaultOnSearch)(searchString)
+        setSearchResults(results)
       }
     },
-    [onSearch, onOpenChange],
-  );
+    [onSearch, onOpenChange]
+  )
 
   const defaultOnSelectNode = useCallback(
     (node: Node) => {
       setNodes((nodes) =>
-        nodes.map((n) => (n.id === node.id ? { ...n, selected: true } : n)),
-      );
-      fitView({ nodes: [node], duration: 500 });
+        nodes.map((n) => (n.id === node.id ? { ...n, selected: true } : n))
+      )
+      fitView({ nodes: [node], duration: 500 })
     },
-    [fitView, setNodes],
-  );
+    [fitView, setNodes]
+  )
 
   const onSelect = useCallback(
     (node: Node) => {
-      (onSelectNode || defaultOnSelectNode)?.(node);
-      setSearchString("");
-      onOpenChange?.(false);
+      ;(onSelectNode || defaultOnSelectNode)?.(node)
+      setSearchString("")
+      onOpenChange?.(false)
     },
-    [onSelectNode, defaultOnSelectNode, onOpenChange],
-  );
+    [onSelectNode, defaultOnSelectNode, onOpenChange]
+  )
 
   return (
     <>
@@ -103,14 +103,14 @@ export function NodeSearchInternal({
                   <CommandItem key={node.id} onSelect={() => onSelect(node)}>
                     <span>{node.data.label as string}</span>
                   </CommandItem>
-                );
+                )
               })}
             </CommandGroup>
           )}
         </CommandList>
       )}
     </>
-  );
+  )
 }
 
 export function NodeSearch({
@@ -119,7 +119,7 @@ export function NodeSearch({
   onSelectNode,
   ...props
 }: NodeSearchProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(false)
   return (
     <Command
       shouldFilter={false}
@@ -134,11 +134,11 @@ export function NodeSearch({
         {...props}
       />
     </Command>
-  );
+  )
 }
 
 export interface NodeSearchDialogProps extends NodeSearchProps {
-  title?: string;
+  title?: string
 }
 
 export function NodeSearchDialog({
@@ -161,5 +161,5 @@ export function NodeSearchDialog({
         {...props}
       />
     </CommandDialog>
-  );
+  )
 }

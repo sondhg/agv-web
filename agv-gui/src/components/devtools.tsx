@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 import {
   useEffect,
@@ -6,7 +6,7 @@ import {
   useCallback,
   type Dispatch,
   type SetStateAction,
-} from "react";
+} from "react"
 
 import {
   useNodes,
@@ -19,31 +19,31 @@ import {
   type OnNodesChange,
   type NodeChange,
   type XYPosition,
-} from "@xyflow/react";
+} from "@xyflow/react"
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 export const ViewportLogger = () => {
   const viewport = useStore(
     (s) =>
-      `x: ${s.transform[0].toFixed(2)}, y: ${s.transform[1].toFixed(2)}, zoom: ${s.transform[2].toFixed(2)}`,
-  );
+      `x: ${s.transform[0].toFixed(2)}, y: ${s.transform[1].toFixed(2)}, zoom: ${s.transform[2].toFixed(2)}`
+  )
 
-  return <div>{viewport}</div>;
-};
+  return <div>{viewport}</div>
+}
 
 type ChangeLoggerProps = {
-  color?: string;
-  limit?: number;
-};
+  color?: string
+  limit?: number
+}
 
 type ChangeInfoProps = {
-  change: NodeChange;
-};
+  change: NodeChange
+}
 
 const ChangeInfo = ({ change }: ChangeInfoProps) => {
-  const id = "id" in change ? change.id : "-";
-  const { type } = change;
+  const id = "id" in change ? change.id : "-"
+  const { type } = change
 
   return (
     <div className="mb-3">
@@ -60,30 +60,30 @@ const ChangeInfo = ({ change }: ChangeInfoProps) => {
         {type === "select" ? (change.selected ? "select" : "unselect") : null}
       </div>
     </div>
-  );
-};
+  )
+}
 
 export const ChangeLogger = ({ limit = 20 }: ChangeLoggerProps) => {
-  const [changes, setChanges] = useState<NodeChange[]>([]);
-  const store = useStoreApi();
+  const [changes, setChanges] = useState<NodeChange[]>([])
+  const store = useStoreApi()
 
   // Memoize the callback for handling node changes
   const handleNodeChanges: OnNodesChange = useCallback(
     (newChanges: NodeChange[]) => {
       setChanges((prevChanges) =>
-        [...newChanges, ...prevChanges].slice(0, limit),
-      );
+        [...newChanges, ...prevChanges].slice(0, limit)
+      )
     },
-    [limit],
-  );
+    [limit]
+  )
 
   useEffect(() => {
-    store.setState({ onNodesChange: handleNodeChanges });
+    store.setState({ onNodesChange: handleNodeChanges })
 
-    return () => store.setState({ onNodesChange: undefined });
-  }, [handleNodeChanges, store]);
+    return () => store.setState({ onNodesChange: undefined })
+  }, [handleNodeChanges, store])
 
-  const NoChanges = () => <div>No Changes Triggered</div>;
+  const NoChanges = () => <div>No Changes Triggered</div>
 
   return (
     <>
@@ -95,23 +95,23 @@ export const ChangeLogger = ({ limit = 20 }: ChangeLoggerProps) => {
         ))
       )}
     </>
-  );
-};
+  )
+}
 
 export const NodeInspector = () => {
-  const { getInternalNode } = useReactFlow();
-  const nodes = useNodes();
+  const { getInternalNode } = useReactFlow()
+  const nodes = useNodes()
 
   return (
     <ViewportPortal>
       <div className="text-secondary-foreground">
         {nodes.map((node) => {
-          const internalNode = getInternalNode(node.id);
+          const internalNode = getInternalNode(node.id)
           if (!internalNode) {
-            return null;
+            return null
           }
 
-          const absPosition = internalNode?.internals.positionAbsolute;
+          const absPosition = internalNode?.internals.positionAbsolute
 
           return (
             <NodeInfo
@@ -125,23 +125,23 @@ export const NodeInspector = () => {
               height={node.measured?.height ?? 0}
               data={node.data}
             />
-          );
+          )
         })}
       </div>
     </ViewportPortal>
-  );
-};
+  )
+}
 
 type NodeInfoProps = {
-  id: string;
-  type: string;
-  selected: boolean;
-  position: XYPosition;
-  absPosition: XYPosition;
-  width?: number;
-  height?: number;
-  data: any;
-};
+  id: string
+  type: string
+  selected: boolean
+  position: XYPosition
+  absPosition: XYPosition
+  width?: number
+  height?: number
+  data: any
+}
 
 const NodeInfo = ({
   id,
@@ -153,12 +153,12 @@ const NodeInfo = ({
   height,
   data,
 }: NodeInfoProps) => {
-  if (!width || !height) return null;
+  if (!width || !height) return null
 
-  const absoluteTransform = `translate(${absPosition.x}px, ${absPosition.y + height}px)`;
-  const formattedPosition = `${position.x.toFixed(1)}, ${position.y.toFixed(1)}`;
-  const formattedDimensions = `${width} × ${height}`;
-  const selectionStatus = selected ? "Selected" : "Not Selected";
+  const absoluteTransform = `translate(${absPosition.x}px, ${absPosition.y + height}px)`
+  const formattedPosition = `${position.x.toFixed(1)}, ${position.y.toFixed(1)}`
+  const formattedDimensions = `${width} × ${height}`
+  const selectionStatus = selected ? "Selected" : "Not Selected"
 
   return (
     <div
@@ -176,24 +176,24 @@ const NodeInfo = ({
       <div>dimensions: {formattedDimensions}</div>
       <div>data: {JSON.stringify(data, null, 2)}</div>
     </div>
-  );
-};
+  )
+}
 
 type Tool = {
-  active: boolean;
-  setActive: Dispatch<SetStateAction<boolean>>;
-  label: string;
-  value: string;
-};
+  active: boolean
+  setActive: Dispatch<SetStateAction<boolean>>
+  label: string
+  value: string
+}
 
 type DevToolsToggleProps = {
-  tools: Tool[];
-  position: PanelPosition;
-};
+  tools: Tool[]
+  position: PanelPosition
+}
 
 const DevToolsToggle = ({ tools, position }: DevToolsToggleProps) => {
   return (
-    <Panel position={position} className="bg-card rounded border p-1 shadow-xs">
+    <Panel position={position} className="rounded border bg-card p-1 shadow-xs">
       <ToggleGroup type="multiple">
         {tools.map(({ active, setActive, label, value }) => (
           <ToggleGroupItem
@@ -201,24 +201,24 @@ const DevToolsToggle = ({ tools, position }: DevToolsToggleProps) => {
             value={value}
             onClick={() => setActive((prev) => !prev)}
             aria-pressed={active}
-            className="bg-card text-card-foreground hover:bg-secondary hover:text-secondary-foreground transition-colors duration-300"
+            className="bg-card text-card-foreground transition-colors duration-300 hover:bg-secondary hover:text-secondary-foreground"
           >
             {label}
           </ToggleGroupItem>
         ))}
       </ToggleGroup>
     </Panel>
-  );
-};
+  )
+}
 
 type DevToolsProps = {
-  position: PanelPosition;
-};
+  position: PanelPosition
+}
 
 export const DevTools = ({ position }: DevToolsProps) => {
-  const [nodeInspectorActive, setNodeInspectorActive] = useState(false);
-  const [changeLoggerActive, setChangeLoggerActive] = useState(false);
-  const [viewportLoggerActive, setViewportLoggerActive] = useState(false);
+  const [nodeInspectorActive, setNodeInspectorActive] = useState(false)
+  const [changeLoggerActive, setChangeLoggerActive] = useState(false)
+  const [viewportLoggerActive, setViewportLoggerActive] = useState(false)
 
   const tools = [
     {
@@ -239,7 +239,7 @@ export const DevTools = ({ position }: DevToolsProps) => {
       label: "Viewport Logger",
       value: "viewport-logger",
     },
-  ];
+  ]
 
   return (
     <>
@@ -262,6 +262,6 @@ export const DevTools = ({ position }: DevToolsProps) => {
         </Panel>
       )}
     </>
-  );
-};
-DevTools.displayName = "DevTools";
+  )
+}
+DevTools.displayName = "DevTools"

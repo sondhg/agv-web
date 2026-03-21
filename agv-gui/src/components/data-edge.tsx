@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo } from "react"
 import {
   BaseEdge,
   EdgeLabelRenderer,
@@ -10,7 +10,7 @@ import {
   type Edge,
   type EdgeProps,
   type Node,
-} from "@xyflow/react";
+} from "@xyflow/react"
 
 export type DataEdge<T extends Node = Node> = Edge<{
   /**
@@ -21,15 +21,15 @@ export type DataEdge<T extends Node = Node> = Edge<{
    * If no key is provided this edge behaves identically to React Flow's default
    * edge component.
    */
-  key?: keyof T["data"];
+  key?: keyof T["data"]
   /**
    * Which of React Flow's path algorithms to use. Each value corresponds to one
    * of React Flow's built-in edge types.
    *
    * If not provided, this defaults to `"bezier"`.
    */
-  path?: "bezier" | "smoothstep" | "step" | "straight";
-}>;
+  path?: "bezier" | "smoothstep" | "step" | "straight"
+}>
 
 export function DataEdge({
   data = { path: "bezier" },
@@ -44,7 +44,7 @@ export function DataEdge({
   targetX,
   targetY,
 }: EdgeProps<DataEdge>) {
-  const nodeData = useStore((state) => state.nodeLookup.get(source)?.data);
+  const nodeData = useStore((state) => state.nodeLookup.get(source)?.data)
   const [edgePath, labelX, labelY] = getPath({
     type: data.path ?? "bezier",
     sourceX,
@@ -53,27 +53,27 @@ export function DataEdge({
     targetX,
     targetY,
     targetPosition,
-  });
+  })
 
   const label = useMemo(() => {
     if (data.key && nodeData) {
-      const value = nodeData[data.key];
+      const value = nodeData[data.key]
 
       switch (typeof value) {
         case "string":
         case "number":
-          return value;
+          return value
 
         case "object":
-          return JSON.stringify(value);
+          return JSON.stringify(value)
 
         default:
-          return "";
+          return ""
       }
     }
-  }, [data, nodeData]);
+  }, [data, nodeData])
 
-  const transform = `translate(${labelX}px,${labelY}px) translate(-50%, -50%)`;
+  const transform = `translate(${labelX}px,${labelY}px) translate(-50%, -50%)`
 
   return (
     <>
@@ -89,7 +89,7 @@ export function DataEdge({
         </EdgeLabelRenderer>
       )}
     </>
-  );
+  )
 }
 
 /**
@@ -105,13 +105,13 @@ function getPath({
   sourcePosition,
   targetPosition,
 }: {
-  type: "bezier" | "smoothstep" | "step" | "straight";
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
-  sourcePosition: Position;
-  targetPosition: Position;
+  type: "bezier" | "smoothstep" | "step" | "straight"
+  sourceX: number
+  sourceY: number
+  targetX: number
+  targetY: number
+  sourcePosition: Position
+  targetPosition: Position
 }) {
   switch (type) {
     case "bezier":
@@ -122,7 +122,7 @@ function getPath({
         targetY,
         sourcePosition,
         targetPosition,
-      });
+      })
 
     case "smoothstep":
       return getSmoothStepPath({
@@ -132,7 +132,7 @@ function getPath({
         targetY,
         sourcePosition,
         targetPosition,
-      });
+      })
 
     case "step":
       return getSmoothStepPath({
@@ -143,7 +143,7 @@ function getPath({
         sourcePosition,
         targetPosition,
         borderRadius: 0,
-      });
+      })
 
     case "straight":
       return getStraightPath({
@@ -151,6 +151,6 @@ function getPath({
         sourceY,
         targetX,
         targetY,
-      });
+      })
   }
 }

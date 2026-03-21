@@ -1,12 +1,12 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps } from "react"
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils"
 
 export function BaseNode({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       className={cn(
-        "bg-card text-card-foreground relative rounded-md border",
+        "relative rounded-md border bg-card text-card-foreground",
         "hover:ring-1",
         // React Flow displays node elements inside of a `NodeWrapper` component,
         // which compiles down to a div with the class `react-flow__node`.
@@ -15,12 +15,12 @@ export function BaseNode({ className, ...props }: ComponentProps<"div">) {
         // is selected, using Tailwind's `&` selector.
         "[.react-flow\\_\\_node.selected_&]:border-muted-foreground",
         "[.react-flow\\_\\_node.selected_&]:shadow-lg",
-        className,
+        className
       )}
       tabIndex={0}
       {...props}
     />
-  );
+  )
 }
 
 /**
@@ -38,10 +38,10 @@ export function BaseNodeHeader({
         "mx-0 my-0 -mb-1 flex flex-row items-center justify-between gap-2 px-3 py-2",
         // Remove or modify these classes if you modify the padding in the
         // `<BaseNode />` component.
-        className,
+        className
       )}
     />
-  );
+  )
 }
 
 /**
@@ -58,7 +58,7 @@ export function BaseNodeHeaderTitle({
       className={cn("user-select-none flex-1 font-semibold", className)}
       {...props}
     />
-  );
+  )
 }
 
 export function BaseNodeContent({
@@ -71,7 +71,7 @@ export function BaseNodeContent({
       className={cn("flex flex-col gap-y-2 p-3", className)}
       {...props}
     />
-  );
+  )
 }
 
 export function BaseNodeFooter({ className, ...props }: ComponentProps<"div">) {
@@ -80,9 +80,9 @@ export function BaseNodeFooter({ className, ...props }: ComponentProps<"div">) {
       data-slot="base-node-footer"
       className={cn(
         "flex flex-col items-center gap-y-2 border-t px-3 pt-2 pb-3",
-        className,
+        className
       )}
       {...props}
     />
-  );
+  )
 }
