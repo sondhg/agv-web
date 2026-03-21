@@ -55,8 +55,8 @@ pnpm dev
 | **Install** | `docker-compose up -d` | `pnpm install` |
 | **Dev Server** | Runs in Docker | `pnpm dev` |
 | **Build** | N/A (Django) | `pnpm build` |
-| **Lint** | N/A | `pnpm lint` |
-| **Format** | N/A | `pnpm format` |
+| **Lint** | `ruff check` (if available) | `pnpm lint` |
+| **Format** | `ruff format` or `black` | `pnpm format` |
 | **Type Check** | Python type hints | `pnpm typecheck` |
 | **Run All Tests** | `docker-compose exec web python manage.py test` | N/A (no tests yet) |
 | **Run Single Test** | `docker-compose exec web python manage.py test app.tests.file.Class.method` | N/A |

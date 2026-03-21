@@ -80,10 +80,31 @@ For system integration and load balancing metrics, use the test scripts provided
 
 ---
 
-## 4. Code Style & Conventions
+## 4. Linting & Formatting
+
+The project uses **Ruff** for Python linting and formatting (fast, modern, Rust-based):
+
+- **Check for linting issues:**
+  ```bash
+  ruff check .
+  ```
+- **Auto-fix linting issues:**
+  ```bash
+  ruff check --fix .
+  ```
+- **Format code with Ruff:**
+  ```bash
+  ruff format .
+  ```
+
+*Note: Ruff cache is stored in `.ruff_cache/` (already gitignored).*
+
+---
+
+## 5. Code Style & Conventions
 
 ### Python Guidelines
-- **Formatting:** Follow **PEP 8** standards. Aim for a maximum line length of 88-100 characters. If a formatter like `black` or `ruff` is present in the environment, use it.
+- **Formatting:** Follow **PEP 8** standards. Aim for a maximum line length of 88-100 characters. Use `ruff format` for consistent formatting.
 - **Type Hinting:** Use Python type hints (`typing` module) extensively for all function arguments and return types. This is critical for maintainability in complex graph and routing logic.
   ```python
   from typing import List, Dict, Optional
@@ -110,7 +131,7 @@ For system integration and load balancing metrics, use the test scripts provided
 
 ---
 
-## 5. Agent Operational Mandates
+## 6. Agent Operational Mandates
 
 When operating in this repository, agents **MUST**:
 1. **Read Before Writing:** Always use file reading and `grep`/`glob` to understand existing architectural patterns (especially around the `vda5050` app and graph engine) before modifying code.
