@@ -38,15 +38,30 @@ const nodeDefaults = {
 
 const initialNodes: Node[] = [
   {
-    id: "0",
-    data: { label: "Node" },
+    id: "1",
+    data: { label: `Node 1` },
     position: { x: 0, y: 0 },
+    ...nodeDefaults,
+  },
+  {
+    id: "2",
+    data: { label: `Node 2` },
+    position: { x: 100, y: 0 },
     ...nodeDefaults,
   },
 ]
 
-const initialEdges: Edge[] = []
-let id = 1
+const initialEdges: Edge[] = [
+  {
+    id: "e1-2",
+    source: "1",
+    target: "2",
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+    },
+  },
+]
+let id = 3
 const getId = () => `${id++}`
 const nodeOrigin = [0.5, 0]
 
