@@ -1,5 +1,15 @@
 import { Button } from "@/components/ui/button"
 import {
+  createGraphEdge,
+  createGraphNode,
+  deleteGraphEdge,
+  deleteGraphNode,
+  fetchGraph,
+  updateGraphNode,
+  type GraphEdge,
+  type GraphNode,
+} from "@/lib/api"
+import {
   Background,
   BackgroundVariant,
   Controls,
@@ -14,22 +24,14 @@ import {
   useNodesState,
   useReactFlow,
   type Edge,
+  type EdgeChange,
   type Node,
+  type NodeChange,
   type OnConnect,
   type OnConnectEnd,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  createGraphEdge,
-  createGraphNode,
-  deleteGraphEdge,
-  deleteGraphNode,
-  fetchGraph,
-  updateGraphNode,
-  type GraphEdge,
-  type GraphNode,
-} from "@/lib/api"
 import Sidebar from "./sidebar"
 
 const MAP_ID = "map_1"
@@ -99,7 +101,7 @@ const initialEdges: Edge[] = [
     },
   },
 ]
-const nodeOrigin = [0.5, 0]
+const nodeOrigin: [number, number] = [0.5, 0]
 
 // Helper function to renumber nodes to maintain consecutive IDs
 function renumberNodes(
@@ -141,8 +143,8 @@ function renumberNodes(
 const AddNodeOnEdgeDrop = () => {
   const reactFlowWrapper = useRef(null)
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges)
   const [originalNodes, setOriginalNodes] = useState<Node[]>([])
   const [originalEdges, setOriginalEdges] = useState<Edge[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -242,28 +244,29 @@ const AddNodeOnEdgeDrop = () => {
   const onConnectEnd: OnConnectEnd = useCallback(
     (event, connectionState) => {
       // when a connection is dropped on the pane it's not valid
-      if (!connectionState.isValid) {
+      if (!connectionState.isValid && connectionState.fromNode) {
         // we need to remove the wrapper bounds, in order to get the correct position
         // Use a temporary ID - it will be renumbered automatically
         const tempId = `Node ${Date.now()}`
+        const fromNodeId = connectionState.fromNode.id
         const { clientX, clientY } =
           "changedTouches" in event ? event.changedTouches[0] : event
-        const newNode = {
+        const newNode: Node = {
           id: tempId,
           position: screenToFlowPosition({
             x: clientX,
             y: clientY,
           }),
           data: { label: tempId },
-          origin: [0.5, 0.0],
+          origin: [0.5, 0.0] as [number, number],
           ...nodeDefaults,
         }
 
         setNodes((nds) => nds.concat(newNode))
         setEdges((eds) =>
           eds.concat({
-            id: `e${connectionState.fromNode.id}-${tempId}`,
-            source: connectionState.fromNode.id,
+            id: `e${fromNodeId}-${tempId}`,
+            source: fromNodeId,
             target: tempId,
             markerEnd: {
               type: MarkerType.ArrowClosed,
@@ -277,7 +280,7 @@ const AddNodeOnEdgeDrop = () => {
 
   // Override node deletion to protect Node 1 and Node 2
   const customOnNodesChange = useCallback(
-    (changes: any[]) => {
+    (changes: NodeChange<Node>[]) => {
       const filteredChanges = changes.filter((change) => {
         if (change.type === "remove") {
           if (PROTECTED_NODE_IDS.includes(change.id)) {
@@ -294,7 +297,7 @@ const AddNodeOnEdgeDrop = () => {
 
   // Override edge deletion to protect the edge between Node 1 and Node 2
   const customOnEdgesChange = useCallback(
-    (changes: any[]) => {
+    (changes: EdgeChange<Edge>[]) => {
       const filteredChanges = changes.filter((change) => {
         if (change.type === "remove") {
           const edge = edges.find((e) => e.id === change.id)
@@ -320,47 +323,80 @@ const AddNodeOnEdgeDrop = () => {
 
     try {
       // Create a map of dbId to nodes for efficient lookup
-      const originalNodesByDbId = new Map(
-        originalNodes.filter((n) => n.data?.dbId).map((n) => [n.data.dbId, n])
+      const originalNodesByDbId = new Map<number, Node>(
+        originalNodes
+          .filter(
+            (n): n is Node & { data: { dbId: number } } =>
+              n.data !== undefined &&
+              "dbId" in n.data &&
+              typeof n.data.dbId === "number"
+          )
+          .map((n) => [n.data.dbId, n])
       )
-      const currentNodesByDbId = new Map(
-        nodes.filter((n) => n.data?.dbId).map((n) => [n.data.dbId, n])
+      const currentNodesByDbId = new Map<number, Node>(
+        nodes
+          .filter(
+            (n): n is Node & { data: { dbId: number } } =>
+              n.data !== undefined &&
+              "dbId" in n.data &&
+              typeof n.data.dbId === "number"
+          )
+          .map((n) => [n.data.dbId, n])
       )
 
       // Find nodes to create (no dbId means new node)
-      const nodesToCreate = nodes.filter((n) => !n.data?.dbId)
+      const nodesToCreate: Node[] = nodes.filter(
+        (n) => !n.data || !("dbId" in n.data)
+      )
 
       // Find nodes to update (has dbId and exists in both original and current)
-      const nodesToUpdate = nodes.filter((n) => {
-        if (!n.data?.dbId) return false
-        const original = originalNodesByDbId.get(n.data.dbId)
-        if (!original) return false
-        // Check if position changed
-        return (
-          n.position.x !== original.position.x ||
-          n.position.y !== original.position.y
-        )
-      })
+      const nodesToUpdate = nodes.filter(
+        (n): n is Node & { data: { dbId: number } } => {
+          if (!n.data || !("dbId" in n.data) || typeof n.data.dbId !== "number")
+            return false
+          const original = originalNodesByDbId.get(n.data.dbId)
+          if (!original) return false
+          // Check if position changed
+          return (
+            n.position.x !== original.position.x ||
+            n.position.y !== original.position.y
+          )
+        }
+      )
 
       // Find nodes to delete (has dbId in original but not in current)
       const nodesToDelete = originalNodes.filter(
-        (n) => n.data?.dbId && !currentNodesByDbId.has(n.data.dbId)
+        (n): n is Node & { data: { dbId: number } } =>
+          n.data !== undefined &&
+          "dbId" in n.data &&
+          typeof n.data.dbId === "number" &&
+          !currentNodesByDbId.has(n.data.dbId)
       )
 
       // For edges, we need to track by dbId too
-      const originalEdgesByDbId = new Map(
-        originalEdges.filter((e) => e.data?.dbId).map((e) => [e.data.dbId, e])
-      )
-      const currentEdgesByDbId = new Map(
-        edges.filter((e) => e.data?.dbId).map((e) => [e.data.dbId, e])
+      const currentEdgesByDbId = new Map<number, Edge>(
+        edges
+          .filter(
+            (e): e is Edge & { data: { dbId: number } } =>
+              e.data !== undefined &&
+              "dbId" in e.data &&
+              typeof e.data.dbId === "number"
+          )
+          .map((e) => [e.data.dbId, e])
       )
 
       // Find edges to create (no dbId means new edge)
-      const edgesToCreate = edges.filter((e) => !e.data?.dbId)
+      const edgesToCreate: Edge[] = edges.filter(
+        (e) => !e.data || !("dbId" in e.data)
+      )
 
       // Find edges to delete (has dbId in original but not in current)
       const edgesToDelete = originalEdges.filter(
-        (e) => e.data?.dbId && !currentEdgesByDbId.has(e.data.dbId)
+        (e): e is Edge & { data: { dbId: number } } =>
+          e.data !== undefined &&
+          "dbId" in e.data &&
+          typeof e.data.dbId === "number" &&
+          !currentEdgesByDbId.has(e.data.dbId)
       )
 
       // Execute operations in the correct order to avoid conflicts
@@ -388,7 +424,12 @@ const AddNodeOnEdgeDrop = () => {
       // 4. Update node_id for nodes that were renumbered
       // This must happen AFTER deletions to avoid uniqueness conflicts
       for (const node of nodes) {
-        if (!node.data?.dbId) continue // Skip new nodes
+        if (
+          !node.data ||
+          !("dbId" in node.data) ||
+          typeof node.data.dbId !== "number"
+        )
+          continue // Skip new nodes
         const original = originalNodesByDbId.get(node.data.dbId)
         if (!original) continue
         // If ID changed (due to renumbering)
@@ -400,9 +441,8 @@ const AddNodeOnEdgeDrop = () => {
       }
 
       // 5. Create new nodes
-      const createdNodesMap = new Map<string, number>() // Map temp ID to dbId
       for (const node of nodesToCreate) {
-        const createdNode = await createGraphNode({
+        await createGraphNode({
           node_id: node.id,
           map_id: MAP_ID,
           x: node.position.x,
@@ -410,7 +450,6 @@ const AddNodeOnEdgeDrop = () => {
           theta: 0.0,
           description: "",
         })
-        createdNodesMap.set(node.id, createdNode.id)
       }
 
       // 6. Create new edges
