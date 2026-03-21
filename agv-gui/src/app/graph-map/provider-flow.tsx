@@ -39,9 +39,8 @@ const nodeDefaults = {
 const initialNodes: Node[] = [
   {
     id: "0",
-    type: "input",
     data: { label: "Node" },
-    position: { x: 0, y: 50 },
+    position: { x: 0, y: 0 },
     ...nodeDefaults,
   },
 ]
