@@ -237,7 +237,11 @@ class GraphEdge(models.Model):
     map_id = models.CharField(max_length=100, default="map_1")
 
     # Weight (for shortest path calculation)
-    length = models.FloatField(help_text="Length of the edge (m)")
+    length = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Length of the edge (m) - auto-calculated if not provided",
+    )
     max_velocity = models.FloatField(
         default=1.0, help_text="Maximum allowed velocity (m/s)"
     )
@@ -250,7 +254,7 @@ class GraphEdge(models.Model):
 
     def save(self, *args, **kwargs):
         # Auto-calculate Euclidean distance if not provided
-        if not self.length:
+        if self.length is None:
             import math
 
             dx = self.end_node.x - self.start_node.x
