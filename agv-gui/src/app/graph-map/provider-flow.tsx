@@ -319,33 +319,90 @@ const AddNodeOnEdgeDrop = () => {
     setError(null)
 
     try {
-      // Find nodes to create, update, and delete
-      const originalNodeIds = new Set(originalNodes.map((n) => n.id))
-      const currentNodeIds = new Set(nodes.map((n) => n.id))
+      // Create a map of dbId to nodes for efficient lookup
+      const originalNodesByDbId = new Map(
+        originalNodes.filter((n) => n.data?.dbId).map((n) => [n.data.dbId, n])
+      )
+      const currentNodesByDbId = new Map(
+        nodes.filter((n) => n.data?.dbId).map((n) => [n.data.dbId, n])
+      )
 
-      const nodesToCreate = nodes.filter((n) => !originalNodeIds.has(n.id))
+      // Find nodes to create (no dbId means new node)
+      const nodesToCreate = nodes.filter((n) => !n.data?.dbId)
+
+      // Find nodes to update (has dbId and exists in both original and current)
       const nodesToUpdate = nodes.filter((n) => {
-        if (!originalNodeIds.has(n.id)) return false
-        const original = originalNodes.find((on) => on.id === n.id)
-        return JSON.stringify(n) !== JSON.stringify(original)
+        if (!n.data?.dbId) return false
+        const original = originalNodesByDbId.get(n.data.dbId)
+        if (!original) return false
+        // Check if position changed
+        return (
+          n.position.x !== original.position.x ||
+          n.position.y !== original.position.y
+        )
       })
+
+      // Find nodes to delete (has dbId in original but not in current)
       const nodesToDelete = originalNodes.filter(
-        (n) => !currentNodeIds.has(n.id)
+        (n) => n.data?.dbId && !currentNodesByDbId.has(n.data.dbId)
       )
 
-      // Find edges to create and delete
-      const originalEdgeIds = new Set(originalEdges.map((e) => e.id))
-      const currentEdgeIds = new Set(edges.map((e) => e.id))
+      // For edges, we need to track by dbId too
+      const originalEdgesByDbId = new Map(
+        originalEdges.filter((e) => e.data?.dbId).map((e) => [e.data.dbId, e])
+      )
+      const currentEdgesByDbId = new Map(
+        edges.filter((e) => e.data?.dbId).map((e) => [e.data.dbId, e])
+      )
 
-      const edgesToCreate = edges.filter((e) => !originalEdgeIds.has(e.id))
+      // Find edges to create (no dbId means new edge)
+      const edgesToCreate = edges.filter((e) => !e.data?.dbId)
+
+      // Find edges to delete (has dbId in original but not in current)
       const edgesToDelete = originalEdges.filter(
-        (e) => !currentEdgeIds.has(e.id)
+        (e) => e.data?.dbId && !currentEdgesByDbId.has(e.data.dbId)
       )
 
-      // Execute operations
-      // 1. Create new nodes
+      // Execute operations in the correct order to avoid conflicts
+      // 1. Delete edges first (before deleting nodes they reference)
+      for (const edge of edgesToDelete) {
+        const dbId = edge.data.dbId
+        await deleteGraphEdge(dbId)
+      }
+
+      // 2. Delete nodes (frees up node_id names for renumbering)
+      for (const node of nodesToDelete) {
+        const dbId = node.data.dbId
+        await deleteGraphNode(dbId)
+      }
+
+      // 3. Update existing nodes (position changes)
+      for (const node of nodesToUpdate) {
+        const dbId = node.data.dbId
+        await updateGraphNode(dbId, {
+          x: node.position.x,
+          y: node.position.y,
+        })
+      }
+
+      // 4. Update node_id for nodes that were renumbered
+      // This must happen AFTER deletions to avoid uniqueness conflicts
+      for (const node of nodes) {
+        if (!node.data?.dbId) continue // Skip new nodes
+        const original = originalNodesByDbId.get(node.data.dbId)
+        if (!original) continue
+        // If ID changed (due to renumbering)
+        if (node.id !== original.id) {
+          await updateGraphNode(node.data.dbId, {
+            node_id: node.id,
+          })
+        }
+      }
+
+      // 5. Create new nodes
+      const createdNodesMap = new Map<string, number>() // Map temp ID to dbId
       for (const node of nodesToCreate) {
-        await createGraphNode({
+        const createdNode = await createGraphNode({
           node_id: node.id,
           map_id: MAP_ID,
           x: node.position.x,
@@ -353,36 +410,10 @@ const AddNodeOnEdgeDrop = () => {
           theta: 0.0,
           description: "",
         })
+        createdNodesMap.set(node.id, createdNode.id)
       }
 
-      // 2. Update existing nodes
-      for (const node of nodesToUpdate) {
-        const dbId = node.data?.dbId
-        if (dbId) {
-          await updateGraphNode(dbId, {
-            x: node.position.x,
-            y: node.position.y,
-          })
-        }
-      }
-
-      // 3. Delete edges first (before deleting nodes)
-      for (const edge of edgesToDelete) {
-        const dbId = edge.data?.dbId
-        if (dbId) {
-          await deleteGraphEdge(dbId)
-        }
-      }
-
-      // 4. Delete nodes
-      for (const node of nodesToDelete) {
-        const dbId = node.data?.dbId
-        if (dbId) {
-          await deleteGraphNode(dbId)
-        }
-      }
-
-      // 5. Create new edges
+      // 6. Create new edges
       for (const edge of edgesToCreate) {
         await createGraphEdge({
           start_node_id: edge.source,
