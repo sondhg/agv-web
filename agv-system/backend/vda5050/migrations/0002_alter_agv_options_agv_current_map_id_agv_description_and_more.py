@@ -7,251 +7,185 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
-        ("vda5050", "0001_initial"),
+        ('vda5050', '0001_initial'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name="agv",
-            options={"verbose_name": "AGV", "verbose_name_plural": "AGV Fleet"},
+            name='agv',
+            options={'verbose_name': 'AGV', 'verbose_name_plural': 'AGV Fleet'},
         ),
         migrations.AddField(
-            model_name="agv",
-            name="current_map_id",
-            field=models.CharField(
-                blank=True,
-                help_text="Current map in use by the AGV",
-                max_length=100,
-                null=True,
-            ),
+            model_name='agv',
+            name='current_map_id',
+            field=models.CharField(blank=True, help_text='Current map in use by the AGV', max_length=100, null=True),
         ),
         migrations.AddField(
-            model_name="agv",
-            name="description",
+            model_name='agv',
+            name='description',
             field=models.TextField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name="agv",
-            name="protocol_version",
-            field=models.CharField(
-                blank=True,
-                help_text="Supported VDA version (e.g., 2.1.0)",
-                max_length=20,
-                null=True,
-            ),
+            model_name='agv',
+            name='protocol_version',
+            field=models.CharField(blank=True, help_text='Supported VDA version (e.g., 2.1.0)', max_length=20, null=True),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="information",
-            field=models.JSONField(
-                default=dict, help_text="Other debug information", null=True
-            ),
+            model_name='agvstate',
+            name='information',
+            field=models.JSONField(default=dict, help_text='Other debug information', null=True),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="last_node_sequence_id",
+            model_name='agvstate',
+            name='last_node_sequence_id',
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="loads",
-            field=models.JSONField(
-                default=list, help_text="Current loads being carried"
-            ),
+            model_name='agvstate',
+            name='loads',
+            field=models.JSONField(default=list, help_text='Current loads being carried'),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="operating_mode",
+            model_name='agvstate',
+            name='operating_mode',
             field=models.CharField(blank=True, max_length=20, null=True),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="paused",
+            model_name='agvstate',
+            name='paused',
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="received_at",
-            field=models.DateTimeField(
-                auto_now_add=True,
-                default=django.utils.timezone.now,
-                help_text="Time when the Server received it",
-            ),
+            model_name='agvstate',
+            name='received_at',
+            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now, help_text='Time when the Server received it'),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="safety_state",
-            field=models.JSONField(default=dict, help_text="{eStop, fieldViolation}"),
+            model_name='agvstate',
+            name='safety_state',
+            field=models.JSONField(default=dict, help_text='{eStop, fieldViolation}'),
         ),
         migrations.AddField(
-            model_name="agvstate",
-            name="velocity",
-            field=models.JSONField(
-                default=dict, help_text="{vx, vy, omega}", null=True
-            ),
+            model_name='agvstate',
+            name='velocity',
+            field=models.JSONField(default=dict, help_text='{vx, vy, omega}', null=True),
         ),
         migrations.AddField(
-            model_name="order",
-            name="created_by",
-            field=models.ForeignKey(
-                blank=True,
-                null=True,
-                on_delete=django.db.models.deletion.SET_NULL,
-                to=settings.AUTH_USER_MODEL,
-            ),
+            model_name='order',
+            name='created_by',
+            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL),
         ),
         migrations.AddField(
-            model_name="order",
-            name="header_id",
+            model_name='order',
+            name='header_id',
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name="order",
-            name="rejection_reason",
-            field=models.TextField(
-                blank=True,
-                help_text="Reason why the AGV rejected this order",
-                null=True,
-            ),
+            model_name='order',
+            name='rejection_reason',
+            field=models.TextField(blank=True, help_text='Reason why the AGV rejected this order', null=True),
         ),
         migrations.AddField(
-            model_name="order",
-            name="timestamp",
-            field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now
-            ),
+            model_name='order',
+            name='timestamp',
+            field=models.DateTimeField(auto_now_add=True, default=django.utils.timezone.now),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name="order",
-            name="updated_at",
+            model_name='order',
+            name='updated_at',
             field=models.DateTimeField(auto_now=True),
         ),
         migrations.AddField(
-            model_name="order",
-            name="zone_set_id",
+            model_name='order',
+            name='zone_set_id',
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name="agv",
-            name="is_online",
-            field=models.BooleanField(
-                default=False, help_text="MQTT connection status"
-            ),
+            model_name='agv',
+            name='is_online',
+            field=models.BooleanField(default=False, help_text='MQTT connection status'),
         ),
         migrations.AlterField(
-            model_name="agv",
-            name="manufacturer",
-            field=models.CharField(
-                help_text="Manufacturer (e.g., KUKA)", max_length=100
-            ),
+            model_name='agv',
+            name='manufacturer',
+            field=models.CharField(help_text='Manufacturer (e.g., KUKA)', max_length=100),
         ),
         migrations.AlterField(
-            model_name="agv",
-            name="serial_number",
-            field=models.CharField(
-                help_text="Unique serial number of the AGV", max_length=100
-            ),
+            model_name='agv',
+            name='serial_number',
+            field=models.CharField(help_text='Unique serial number of the AGV', max_length=100),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="agv",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="states",
-                to="vda5050.agv",
-            ),
+            model_name='agvstate',
+            name='agv',
+            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='states', to='vda5050.agv'),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="agv_position",
-            field=models.JSONField(
-                default=dict, help_text="{x, y, theta, mapId...}", null=True
-            ),
+            model_name='agvstate',
+            name='agv_position',
+            field=models.JSONField(default=dict, help_text='{x, y, theta, mapId...}', null=True),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="battery_state",
-            field=models.JSONField(
-                default=dict, help_text="{charge, voltage, health...}"
-            ),
+            model_name='agvstate',
+            name='battery_state',
+            field=models.JSONField(default=dict, help_text='{charge, voltage, health...}'),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="errors",
-            field=models.JSONField(default=list, help_text="List of current errors"),
+            model_name='agvstate',
+            name='errors',
+            field=models.JSONField(default=list, help_text='List of current errors'),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="last_node_id",
+            model_name='agvstate',
+            name='last_node_id',
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="order_id",
+            model_name='agvstate',
+            name='order_id',
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name="agvstate",
-            name="timestamp",
-            field=models.DateTimeField(
-                help_text="Time when the AGV created the packet"
-            ),
+            model_name='agvstate',
+            name='timestamp',
+            field=models.DateTimeField(help_text='Time when the AGV created the packet'),
         ),
         migrations.AlterField(
-            model_name="order",
-            name="edges",
-            field=models.JSONField(default=list, help_text="List of Edges"),
+            model_name='order',
+            name='edges',
+            field=models.JSONField(default=list, help_text='List of Edges'),
         ),
         migrations.AlterField(
-            model_name="order",
-            name="nodes",
-            field=models.JSONField(
-                default=list, help_text="List of Nodes (with Actions)"
-            ),
+            model_name='order',
+            name='nodes',
+            field=models.JSONField(default=list, help_text='List of Nodes (with Actions)'),
         ),
         migrations.AlterField(
-            model_name="order",
-            name="order_id",
-            field=models.CharField(
-                help_text="Unique order ID from VDA", max_length=100, unique=True
-            ),
+            model_name='order',
+            name='order_id',
+            field=models.CharField(help_text='Unique order ID from VDA', max_length=100, unique=True),
         ),
         migrations.AlterField(
-            model_name="order",
-            name="order_update_id",
-            field=models.IntegerField(
-                default=0, help_text="Used for updating/extending orders"
-            ),
+            model_name='order',
+            name='order_update_id',
+            field=models.IntegerField(default=0, help_text='Used for updating/extending orders'),
         ),
         migrations.AlterField(
-            model_name="order",
-            name="status",
-            field=models.CharField(
-                choices=[
-                    ("CREATED", "Newly Created"),
-                    ("SENT", "Sent to AGV"),
-                    ("ACTIVE", "Active"),
-                    ("COMPLETED", "Completed"),
-                    ("REJECTED", "Rejected by AGV"),
-                    ("CANCELLED", "Cancelled"),
-                    ("FAILED", "Failed"),
-                ],
-                default="CREATED",
-                max_length=20,
-            ),
+            model_name='order',
+            name='status',
+            field=models.CharField(choices=[('CREATED', 'Newly Created'), ('SENT', 'Sent to AGV'), ('ACTIVE', 'Active'), ('COMPLETED', 'Completed'), ('REJECTED', 'Rejected by AGV'), ('CANCELLED', 'Cancelled'), ('FAILED', 'Failed')], default='CREATED', max_length=20),
         ),
         migrations.AlterUniqueTogether(
-            name="agv",
-            unique_together={("manufacturer", "serial_number")},
+            name='agv',
+            unique_together={('manufacturer', 'serial_number')},
         ),
         migrations.AddIndex(
-            model_name="agvstate",
-            index=models.Index(
-                fields=["agv", "timestamp"], name="vda5050_agv_agv_id_02e87b_idx"
-            ),
+            model_name='agvstate',
+            index=models.Index(fields=['agv', 'timestamp'], name='vda5050_agv_agv_id_02e87b_idx'),
         ),
     ]

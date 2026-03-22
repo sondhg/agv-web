@@ -34,13 +34,13 @@ from .calculators import (
 
 # Public API
 __all__ = [
-    "BiddingEngine",
-    "AuctionCoordinator",
-    "TransportCalculator",
-    "BaselineCalculator",
-    "BidCalculator",
+    'BiddingEngine',
+    'AuctionCoordinator',
+    'TransportCalculator',
+    'BaselineCalculator',
+    'BidCalculator',
 ]
 
 # Version info
-__version__ = "2.0.0"
-__author__ = "Nguyen Nghia"
+__version__ = '2.0.0'
+__author__ = 'Nguyen Nghia'
