@@ -5,81 +5,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+
     dependencies = [
-        ("vda5050", "0004_alter_instantaction_action_type"),
+        ('vda5050', '0004_alter_instantaction_action_type'),
     ]
 
     operations = [
         migrations.CreateModel(
-            name="GraphNode",
+            name='GraphNode',
             fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                (
-                    "node_id",
-                    models.CharField(
-                        help_text="Tên định danh điểm", max_length=100, unique=True
-                    ),
-                ),
-                ("map_id", models.CharField(default="map_1", max_length=100)),
-                ("x", models.FloatField()),
-                ("y", models.FloatField()),
-                (
-                    "theta",
-                    models.FloatField(
-                        default=0.0, help_text="Góc hướng của xe tại điểm này"
-                    ),
-                ),
-                ("description", models.CharField(blank=True, max_length=255)),
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('node_id', models.CharField(help_text='Tên định danh điểm', max_length=100, unique=True)),
+                ('map_id', models.CharField(default='map_1', max_length=100)),
+                ('x', models.FloatField()),
+                ('y', models.FloatField()),
+                ('theta', models.FloatField(default=0.0, help_text='Góc hướng của xe tại điểm này')),
+                ('description', models.CharField(blank=True, max_length=255)),
             ],
         ),
         migrations.CreateModel(
-            name="GraphEdge",
+            name='GraphEdge',
             fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("map_id", models.CharField(default="map_1", max_length=100)),
-                ("length", models.FloatField(help_text="Độ dài đoạn đường (m)")),
-                (
-                    "max_velocity",
-                    models.FloatField(
-                        default=1.0, help_text="Vận tốc tối đa cho phép (m/s)"
-                    ),
-                ),
-                ("is_directed", models.BooleanField(default=True)),
-                (
-                    "end_node",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="incoming_edges",
-                        to="vda5050.graphnode",
-                    ),
-                ),
-                (
-                    "start_node",
-                    models.ForeignKey(
-                        on_delete=django.db.models.deletion.CASCADE,
-                        related_name="outgoing_edges",
-                        to="vda5050.graphnode",
-                    ),
-                ),
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('map_id', models.CharField(default='map_1', max_length=100)),
+                ('length', models.FloatField(help_text='Độ dài đoạn đường (m)')),
+                ('max_velocity', models.FloatField(default=1.0, help_text='Vận tốc tối đa cho phép (m/s)')),
+                ('is_directed', models.BooleanField(default=True)),
+                ('end_node', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='incoming_edges', to='vda5050.graphnode')),
+                ('start_node', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='outgoing_edges', to='vda5050.graphnode')),
             ],
             options={
-                "unique_together": {("start_node", "end_node")},
+                'unique_together': {('start_node', 'end_node')},
             },
         ),
     ]
