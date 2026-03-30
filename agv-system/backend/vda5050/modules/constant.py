@@ -1,23 +1,23 @@
 # --- Physics-Based Energy Model Constants ---
-GRAVITY_MPS2 = 9.81          # Gia tốc trọng trường (m/s²)
-AGV_MASS_KG = 50.0           # Khối lượng AGV không tải (kg)
-ROLLING_FRICTION = 0.02      # Hệ số ma sát lăn
-ACCELERATION_MPS2 = 0.5      # Gia tốc trung bình (m/s²)
-AGV_VELOCITY_MPS = 1.0       # Vận tốc tịnh tiến AGV (m/s)
-WHEELBASE_M = 0.6            # Khoảng cách giữa hai bánh (m)
-MOTOR_EFFICIENCY = 0.85      # Hiệu suất motor
-TURN_TIME_AVG_SEC = 2.0      # Thời gian quay đầu trung bình (s)
+GRAVITY_MPS2 = 9.81          # Gravity acceleration (m/s²)
+AGV_MASS_KG = 50.0           # Mass of the AGV (kg)
+ROLLING_FRICTION = 0.02      # Rolling friction coefficient
+ACCELERATION_MPS2 = 0.5      # Average acceleration (m/s²)
+AGV_VELOCITY_MPS = 1.0       # Translational velocity of the AGV (m/s)
+WHEELBASE_M = 0.6            # Distance between the wheels (m)
+MOTOR_EFFICIENCY = 0.85      # Motor efficiency
+TURN_TIME_AVG_SEC = 2.0      # Average turn time (s)
 
 # Backward-compatible alias
 AGV_SPEED_MPS = AGV_VELOCITY_MPS
 
-# Weights cho hàm mục tiêu
-K_ENERGY = 0.5          # Trọng số năng lượng
-K_TIME = 0.5            # Trọng số thời gian
+# Weights for the objective function
+K_ENERGY = 0.5          # Weight for energy cost
+K_TIME = 0.5            # Weight for time cost
 
 # Hybrid Objective Parameter (SSI-DMAS)
 # epsilon = 1: Pure MiniSum (Tối ưu tổng thể)
-# epsilon = 0: Pure MiniMax (Cân bằng tải)
+# epsilon = 0: Pure MiniMax (Load balancing)
 EPSILON = 0.5
 
 # Auction strategy feature flag
@@ -26,7 +26,7 @@ EPSILON = 0.5
 AUCTION_ALGORITHM = 'SSI_MARGINAL'
 
 # System Default
-DEFAULT_LOAD_KG = 50.0  # Giả sử tải trọng trung bình nếu không biết
+DEFAULT_LOAD_KG = 50.0  # Assuming average load weight if not known
 
 # Fallback Constants
 FALLBACK_NORM_ENERGY_KJ = 1.0 

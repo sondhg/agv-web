@@ -1,11 +1,11 @@
 # Bidding System Module
 
-## 🏗️ Kiến trúc hệ thống
+## 🏗️ System Architecture
 
 ### 1. **BiddingEngine** (Facade Pattern)
 - **File**: `bidding/engine.py`
-- **Vai trò**: Main interface cho external modules
-- **Chức năng**:
+- **Vai trò**: Main interface for external modules
+- **Functions**:
   - Khởi tạo và quản lý tất cả components
   - Cung cấp API đơn giản: `run_auction()`, `run_auction_with_details()`
   - Backward compatibility với code cũ
@@ -24,9 +24,9 @@
 #### 3.1 TransportCalculator
 - **File**: `bidding/calculators/transport.py`
 - **Vai trò**: Tính toán metrics vật lý
-- **Chức năng**:
-  - `calculate_travel_time()`: Thời gian di chuyển
-  - `calculate_energy_consumption()`: Năng lượng tiêu thụ
+- **Functions**:
+  - `calculate_travel_time()`: Travel time
+  - `calculate_energy_consumption()`: Energy consumed
   - `calculate_metrics()`: Tính cả E và T
   - `validate_metrics()`: Kiểm tra giá trị hợp lệ
 
