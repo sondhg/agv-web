@@ -46,12 +46,12 @@ class Scheduler:
                 print(f"Chaining order: Start from {start_node_id} (End of Order {last_active_order.order_id})")
             except (IndexError, KeyError, TypeError):
                 # Fallback if the order's nodes data is malformed
-                return {"success": False, "error": "Lỗi dữ liệu Nodes của lệnh trước đó"}
+                return {"success": False, "error": "Malformed nodes data in previous order"}
         else:
             # If no active order, start from current position
             last_state = AGVState.objects.filter(agv=agv).order_by('-timestamp').first()
             if not last_state:
-                return {"success": False, "error": "AGV chưa có dữ liệu vị trí (State)"}
+                return {"success": False, "error": "AGV has no position data (State)"}
             
             start_node_id = last_state.last_node_id
             initial_status = 'CREATED' 

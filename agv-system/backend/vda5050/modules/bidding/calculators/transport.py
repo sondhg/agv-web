@@ -1,7 +1,7 @@
 """
-TransportCalculator: Tính toán các chỉ số vật lý của việc vận chuyển.
+TransportCalculator: Calculator for transport metrics (energy, time) based on physics.
 
-Sử dụng mô hình năng lượng dựa trên vật lý (physics-based):
+Using a physics-based energy model:
   P_m,trans = (m_agv + m_load) · (μ_r·g + a) · v
   P_m,rot   = (m_agv + m_load) · (μ_r·g + a) · l / 2
   P_e       = (P_m,trans + P_m,rot) / η
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class TransportCalculator:
     """
-    Tính toán Energy (kJ) và Time (s) dựa trên mô hình vật lý.
+    Calculator for transport metrics (energy, time) based on physics.
     """
 
     def __init__(
@@ -125,7 +125,7 @@ class TransportCalculator:
         self, distance_m: float, load_kg: float = 0, num_turns: int = 0
     ) -> tuple:
         """
-        Tính đồng thời energy (kJ) và time (s).
+        Calculate both energy and time metrics.
 
         Returns:
             tuple: (energy_kj, time_s)
@@ -136,7 +136,7 @@ class TransportCalculator:
 
     def validate_metrics(self, energy_kj: float, time_s: float) -> tuple:
         """
-        Kiểm tra và điều chỉnh metrics để tránh giá trị không hợp lệ.
+        Validate and adjust metrics to avoid invalid values.
         """
         validated_energy = energy_kj if energy_kj > 0 else FALLBACK_NORM_ENERGY_KJ
         validated_time = time_s if time_s > 0 else FALLBACK_NORM_TFT_SEC

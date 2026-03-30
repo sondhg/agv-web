@@ -1,6 +1,5 @@
 """
-AuctionCoordinator: Điều phối đấu giá và chọn AGV thắng cuộc.
-Chịu trách nhiệm tổ chức auction process và quyết định winner.
+AuctionCoordinator: Coordinator for managing the auction process and selecting the winning AGV.
 """
 
 import logging
@@ -13,21 +12,21 @@ logger = logging.getLogger(__name__)
 
 class AuctionCoordinator:
     """
-    Class điều phối quá trình đấu giá.
+    Class for coordinating the auction process and selecting the winning AGV.
     
     Responsibilities:
-    - Thu thập danh sách AGV khả dụng
-    - Gọi bid từ mỗi AGV
-    - So sánh và chọn winner
-    - Log chi tiết quá trình đấu giá
+    - Collecting bids from all available AGVs
+    - Calling bids from each AGV
+    - Comparing and selecting the winner
+    - Logging detailed auction process
     
     Attributes:
-        bid_calculator (BidCalculator): Calculator để tính bid cho từng AGV
+        bid_calculator (BidCalculator): Bid calculator for each AGV
     """
     
     def __init__(self, bid_calculator=None):
         """
-        Khởi tạo coordinator với dependencies.
+        Initialize coordinator with dependencies.
         
         Args:
             bid_calculator: BidCalculator instance
@@ -37,10 +36,10 @@ class AuctionCoordinator:
     
     def get_available_agvs(self):
         """
-        Lấy danh sách AGV khả dụng để tham gia đấu giá.
+        Get the list of available AGVs to participate in the auction.
         
         Returns:
-            QuerySet: Danh sách AGV online
+            QuerySet: List of online AGVs
         """
         agvs = AGV.objects.filter(is_online=True)
         logger.debug(f"Found {agvs.count()} available AGVs")
@@ -48,13 +47,13 @@ class AuctionCoordinator:
     
     def collect_bids(self, agvs, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG, epsilon=None):
         """
-        Thu thập bid từ tất cả AGV.
+        Collect bids from all available AGVs.
         
         Args:
-            agvs: QuerySet hoặc list của AGV instances
-            pickup_node_id: Node lấy hàng
-            delivery_node_id: Node giao hàng (nếu None, chỉ đi đến pickup)
-            load_kg: Tải trọng
+            agvs: QuerySet or AGV instances list
+            pickup_node_id: Pickup node
+            delivery_node_id: Delivery node (if None, only go to pickup)
+            load_kg: Load weight
             epsilon: Override hybrid parameter (None = use default)
             
         Returns:
@@ -114,19 +113,19 @@ class AuctionCoordinator:
     
     def select_winner(self, bids):
         """
-        Chọn AGV thắng cuộc từ danh sách bids.
+        Select the winning AGV from the list of bids.
         
         Args:
-            bids: List of (bid_score, agv, bid_details) từ collect_bids()
+            bids: List of (bid_score, agv, bid_details) from collect_bids()
             
         Returns:
-            tuple: (winner_agv, winner_details) hoặc (None, None) nếu không có winner
+            tuple: (winner_agv, winner_details) or (None, None) if no winner
         """
         if not bids:
             logger.warning("No valid bids received")
             return None, None
         
-        # Sắp xếp theo bid score (thấp nhất thắng)
+        # Sort bids by score (ascending)
         bids.sort(key=lambda x: x[0])
         
         winner_score, winner_agv, winner_details = bids[0]
@@ -137,18 +136,18 @@ class AuctionCoordinator:
     
     def run_auction(self, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG, epsilon=None):
         """
-        Chạy toàn bộ quy trình đấu giá (main entry point).
+        Run the entire auction process (main entry point).
         
         Args:
-            pickup_node_id: Node lấy hàng
-            delivery_node_id: Node giao hàng (nếu None, chỉ đi đến pickup)
-            load_kg: Tải trọng
+            pickup_node_id: Pickup node
+            delivery_node_id: Delivery node (if None, only go to pickup)
+            load_kg: Load weight
             epsilon: Override hybrid parameter (None = use default)
             
         Returns:
             tuple: (winner_agv, error_message)
-                - winner_agv: AGV instance thắng cuộc, hoặc None nếu thất bại
-                - error_message: None nếu thành công, string mô tả lỗi nếu thất bại
+                - winner_agv: AGV instance, or None if failed
+                - error_message: None if successful, string describing the error if failed
         """
         logger.info("========== START AUCTION ==========")
         if delivery_node_id:
@@ -161,7 +160,7 @@ class AuctionCoordinator:
         )
         logger.info("======================================")
         
-        # Bước 1: Lấy danh sách AGV
+        # Step 1: Get list of available AGVs
         agvs = self.get_available_agvs()
         
         if not agvs.exists():
@@ -169,7 +168,7 @@ class AuctionCoordinator:
             logger.error(f"AUCTION FAILED: {error_msg}")
             return None, error_msg
         
-        # Bước 2: Thu thập bids
+        # Step 2: Collect bids
         bids = self.collect_bids(agvs, pickup_node_id, delivery_node_id, load_kg, epsilon=epsilon)
         
         if not bids:
@@ -177,7 +176,7 @@ class AuctionCoordinator:
             logger.error(f"AUCTION FAILED: {error_msg}")
             return None, error_msg
         
-        # Bước 3: Chọn winner
+        # Step 3: Select winner
         winner_agv, winner_details = self.select_winner(bids)
         
         if not winner_agv:
@@ -185,7 +184,7 @@ class AuctionCoordinator:
             logger.error(f"AUCTION FAILED: {error_msg}")
             return None, error_msg
         
-        # Log kết quả chi tiết
+        # Log detailed results
         logger.info("======================================")
         logger.info(f"   Auction Result: {winner_agv.serial_number}")
         logger.info(f"   Bid Score: {winner_details['bid_final']:.4f}")
@@ -201,19 +200,19 @@ class AuctionCoordinator:
     
     def run_auction_with_details(self, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG):
         """
-        Chạy auction và trả về kết quả chi tiết (bao gồm cả tất cả bids).
+        Run the auction and return detailed results (including all bids).
         
         Args:
-            pickup_node_id: Node lấy hàng
-            delivery_node_id: Node giao hàng (nếu None, chỉ đi đến pickup)
-            load_kg: Tải trọng
+            pickup_node_id: Pickup node
+            delivery_node_id: Delivery node (if None, only go to pickup)
+            load_kg: Load weight
             
         Returns:
             dict: {
-                'winner_agv': AGV instance hoặc None,
-                'winner_details': dict hoặc None,
+                'winner_agv': AGV instance or None,
+                'winner_details': dict or None,
                 'all_bids': list of (score, agv, details),
-                'error': string hoặc None
+                'error': string or None
             }
         """
         agvs = self.get_available_agvs()
