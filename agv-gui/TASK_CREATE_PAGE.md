@@ -52,6 +52,7 @@ The dev server should start at `http://localhost:5173`
 ### Step 2: Navigate to Task Creation Page
 
 Open your browser and go to:
+
 ```
 http://localhost:5173/tasks/create
 ```
@@ -65,20 +66,23 @@ You should see the "Create Transport Task" page.
 ### Test Case 1: Create a Simple Task
 
 **Steps**:
+
 1. Open `http://localhost:5173/tasks/create`
 2. Select **Pickup Node**: `Node_A`
 3. Select **Delivery Node**: `Node_C`
 4. Click "Create Transport Task"
 
 **Expected Result**:
+
 - ✅ Loading state shows "Running Auction..."
 - ✅ After ~1 second, success message appears
 - ✅ Shows winner AGV (e.g., "AGV_04" since it's at Node_A)
-- ✅ Shows order ID (e.g., "ORD_...")
+- ✅ Shows order ID (e.g., "ORD\_...")
 - ✅ Shows status: "CREATED" or "QUEUED"
 - ✅ Shows path with arrows (e.g., `Node_A → Node_C`)
 
 **Screenshot Area**: The green success box should show:
+
 ```
 ✓ Task Assigned Successfully
   Order sent to AGV
@@ -99,12 +103,14 @@ You should see the "Create Transport Task" page.
 ### Test Case 2: Create a Task Requiring Multi-Hop Path
 
 **Steps**:
+
 1. Reload the page (to clear previous result)
 2. Select **Pickup Node**: `Node_A`
 3. Select **Delivery Node**: `Node_H`
 4. Click "Create Transport Task"
 
 **Expected Result**:
+
 - ✅ Success message appears
 - ✅ Path shows multiple hops (e.g., `Node_B → Node_A → Node_E → Node_H` or similar)
 - ✅ Winner AGV is selected based on proximity and battery
@@ -117,11 +123,13 @@ You should see the "Create Transport Task" page.
 ### Test Case 3: Validation - Same Node
 
 **Steps**:
+
 1. Select **Pickup Node**: `Node_B`
 2. Select **Delivery Node**: `Node_B` (same node)
 3. Click "Create Transport Task"
 
 **Expected Result**:
+
 - ✅ Red error message: "Pickup and delivery nodes must be different"
 - ✅ No task is created
 - ✅ Error clears when you change selection
@@ -131,6 +139,7 @@ You should see the "Create Transport Task" page.
 ### Test Case 4: Multiple Tasks (Load Balancing)
 
 **Steps**:
+
 1. Create task: `Node_A` → `Node_C` (wait for success)
 2. Reload page
 3. Create task: `Node_E` → `Node_H` (wait for success)
@@ -138,6 +147,7 @@ You should see the "Create Transport Task" page.
 5. Create task: `Node_B` → `Node_F` (wait for success)
 
 **Expected Result**:
+
 - ✅ Each task succeeds
 - ✅ Different AGVs win (load balancing in action!)
 - ✅ AGVs closer to pickup node are preferred
@@ -150,16 +160,19 @@ You should see the "Create Transport Task" page.
 ### Test Case 5: No AGVs Online (Error Handling)
 
 **Steps**:
+
 1. Stop the AGV simulators (Ctrl+C in the simulator terminal)
 2. Wait 10 seconds for AGVs to go offline
 3. Try to create a task
 
 **Expected Result**:
+
 - ✅ Red error message: "No suitable AGV found"
 - ✅ Shows clear error from backend
 - ✅ No order is created
 
 **Recovery**:
+
 1. Restart simulators: `python multi_mock_agv.py`
 2. Wait 10 seconds
 3. Try creating task again - should work
@@ -169,6 +182,7 @@ You should see the "Create Transport Task" page.
 ## 🔍 What to Observe
 
 ### In the Browser
+
 - **Loading States**: Button shows spinner during auction
 - **Success Display**: Green alert box with all details
 - **Error Display**: Red alert box with clear message
@@ -176,7 +190,9 @@ You should see the "Create Transport Task" page.
 - **Responsive Layout**: Works on different screen sizes
 
 ### In the Simulator Terminal
+
 After creating a task, you should see:
+
 ```
 📦 AGV_04: Order received: ORD_...
 📍 AGV_04: Executing nodes: ['Node_A', 'Node_C']
@@ -185,6 +201,7 @@ After creating a task, you should see:
 ```
 
 ### In Backend Logs (Optional)
+
 ```bash
 cd agv-system
 docker-compose logs -f web
@@ -215,27 +232,34 @@ Before moving to the next task, confirm:
 ## 🐛 Troubleshooting
 
 ### Issue: "Failed to load graph nodes"
+
 **Fix**: Make sure graph is setup:
+
 ```bash
 cd agv-system
 docker-compose exec web python manage.py setup_test_graph
 ```
 
 ### Issue: "No suitable AGV found"
+
 **Fix**: Start simulators:
+
 ```bash
 cd agv-system/tests/simulators
 python multi_mock_agv.py
 ```
 
 ### Issue: Page shows 404 Not Found
+
 **Fix**: Make sure frontend dev server is running:
+
 ```bash
 cd agv-gui
 pnpm dev
 ```
 
 ### Issue: Dropdowns are empty
+
 **Fix**: Check browser console for errors. Backend must be running.
 
 ---

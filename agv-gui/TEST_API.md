@@ -7,6 +7,7 @@
 The following TypeScript types and functions were added to `/src/lib/api.ts`:
 
 #### **New Types**
+
 1. `VDA5050Node` - Represents a waypoint in AGV path
 2. `VDA5050Edge` - Represents a path segment between nodes
 3. `OrderStatus` - Order lifecycle states (CREATED, SENT, ACTIVE, etc.)
@@ -16,6 +17,7 @@ The following TypeScript types and functions were added to `/src/lib/api.ts`:
 7. `AGVState` - AGV telemetry data
 
 #### **New API Functions**
+
 1. `createTask(task)` - Create transport task, triggers auction
 2. `fetchOrders()` - Get all orders
 3. `fetchOrder(orderId)` - Get single order
@@ -28,18 +30,21 @@ The following TypeScript types and functions were added to `/src/lib/api.ts`:
 ### Prerequisites
 
 1. **Backend must be running**:
+
    ```bash
    cd agv-system
    docker-compose up -d
    ```
 
 2. **Test data must be setup**:
+
    ```bash
    docker-compose exec web python manage.py setup_test_agvs --count 7
    docker-compose exec web python manage.py setup_test_graph
    ```
 
 3. **AGV simulators should be running**:
+
    ```bash
    cd tests/simulators
    python multi_mock_agv.py
@@ -61,14 +66,15 @@ Open your browser to `http://localhost:5173` and open the browser console (F12).
 
 ```javascript
 // Copy and paste into browser console
-const response = await fetch('http://localhost:8000/api/orders/')
+const response = await fetch("http://localhost:8000/api/orders/")
 const orders = await response.json()
-console.log('Orders:', orders)
+console.log("Orders:", orders)
 ```
 
 **Expected result**: Array of orders (may be empty if no tasks created yet)
 
-**Success criteria**: 
+**Success criteria**:
+
 - ✅ No error thrown
 - ✅ Returns array (even if empty)
 - ✅ Each order has: `id`, `order_id`, `status`, `nodes`, `edges`
@@ -79,14 +85,18 @@ console.log('Orders:', orders)
 
 ```javascript
 // This is needed to know which nodes exist for task creation
-const response = await fetch('http://localhost:8000/api/graph/nodes/')
+const response = await fetch("http://localhost:8000/api/graph/nodes/")
 const nodes = await response.json()
-console.log('Available nodes:', nodes.map(n => n.node_id))
+console.log(
+  "Available nodes:",
+  nodes.map((n) => n.node_id)
+)
 ```
 
 **Expected result**: Array of node objects
 
 **Success criteria**:
+
 - ✅ Returns array with 8 nodes (from setup_test_graph)
 - ✅ Example nodes: "Node_A", "Node_B", "Node_C", etc.
 
@@ -96,24 +106,25 @@ console.log('Available nodes:', nodes.map(n => n.node_id))
 
 ```javascript
 // Create a transport task from Node_A to Node_C
-const response = await fetch('http://localhost:8000/api/tasks/', {
-  method: 'POST',
+const response = await fetch("http://localhost:8000/api/tasks/", {
+  method: "POST",
   headers: {
-    'Content-Type': 'application/json'
+    "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    pickup_node_id: 'Node_A',
-    delivery_node_id: 'Node_C'
-  })
+    pickup_node_id: "Node_A",
+    delivery_node_id: "Node_C",
+  }),
 })
 
 const result = await response.json()
-console.log('Auction result:', result)
+console.log("Auction result:", result)
 ```
 
 **Expected result**: Object with auction winner
 
 **Success criteria**:
+
 - ✅ `success: true`
 - ✅ `winner_agv` is a serial number (e.g., "AGV_01")
 - ✅ `order_id` is generated (e.g., "ORD_A3F2B8C1")
@@ -123,6 +134,7 @@ console.log('Auction result:', result)
 - ✅ `delivery_node` is "Node_C"
 
 **Example response**:
+
 ```json
 {
   "success": true,
@@ -142,15 +154,16 @@ console.log('Auction result:', result)
 
 ```javascript
 // Fetch orders again to see the new order
-const response = await fetch('http://localhost:8000/api/orders/')
+const response = await fetch("http://localhost:8000/api/orders/")
 const orders = await response.json()
-console.log('Total orders:', orders.length)
-console.log('Latest order:', orders[0]) // Newest first
+console.log("Total orders:", orders.length)
+console.log("Latest order:", orders[0]) // Newest first
 ```
 
 **Expected result**: Array contains the order you just created
 
 **Success criteria**:
+
 - ✅ At least 1 order exists
 - ✅ Latest order has the `order_id` from Test 3
 - ✅ Order has `nodes` array (should have 3+ nodes: current → pickup → delivery)
@@ -162,15 +175,16 @@ console.log('Latest order:', orders[0]) // Newest first
 
 ```javascript
 // Get telemetry data for AGV_01
-const response = await fetch('http://localhost:8000/api/agvs/AGV_01/states/')
+const response = await fetch("http://localhost:8000/api/agvs/AGV_01/states/")
 const states = await response.json()
-console.log('AGV_01 state count:', states.length)
-console.log('Latest state:', states[0]) // Newest first
+console.log("AGV_01 state count:", states.length)
+console.log("Latest state:", states[0]) // Newest first
 ```
 
 **Expected result**: Array of state snapshots
 
 **Success criteria**:
+
 - ✅ Returns array of states
 - ✅ Each state has: `battery_state`, `agv_position`, `velocity`, `safety_state`
 - ✅ `battery_state.batteryCharge` is a number (0-100)
@@ -183,15 +197,22 @@ console.log('Latest state:', states[0]) // Newest first
 
 ```javascript
 // See which AGVs are online
-const response = await fetch('http://localhost:8000/api/agvs/')
+const response = await fetch("http://localhost:8000/api/agvs/")
 const agvs = await response.json()
-console.log('AGVs online:', agvs.filter(a => a.is_online).map(a => a.serial_number))
-console.log('AGVs offline:', agvs.filter(a => !a.is_online).map(a => a.serial_number))
+console.log(
+  "AGVs online:",
+  agvs.filter((a) => a.is_online).map((a) => a.serial_number)
+)
+console.log(
+  "AGVs offline:",
+  agvs.filter((a) => !a.is_online).map((a) => a.serial_number)
+)
 ```
 
 **Expected result**: List of online/offline AGVs
 
 **Success criteria**:
+
 - ✅ If simulators are running, several AGVs should be `is_online: true`
 - ✅ If simulators are NOT running, all AGVs will be `is_online: false`
 
@@ -200,9 +221,11 @@ console.log('AGVs offline:', agvs.filter(a => !a.is_online).map(a => a.serial_nu
 ## Troubleshooting
 
 ### Error: "Failed to fetch"
+
 **Cause**: Backend is not running or CORS is not configured
 
 **Fix**:
+
 ```bash
 # Check backend is running
 docker-compose ps
@@ -214,9 +237,11 @@ docker-compose logs web
 ---
 
 ### Error: "No suitable AGV found"
+
 **Cause**: No AGVs are online
 
 **Fix**: Start the AGV simulators
+
 ```bash
 cd agv-system/tests/simulators
 python multi_mock_agv.py
@@ -227,9 +252,11 @@ Wait 10 seconds for AGVs to connect, then try creating a task again.
 ---
 
 ### Error: "Node not found"
+
 **Cause**: Graph nodes don't exist in database
 
 **Fix**:
+
 ```bash
 cd agv-system
 docker-compose exec web python manage.py setup_test_graph

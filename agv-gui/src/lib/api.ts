@@ -228,7 +228,9 @@ export async function fetchGraphEdges(
 /**
  * Fetch complete graph (nodes + edges)
  */
-export async function fetchGraph(mapId: string = "default_map"): Promise<GraphData> {
+export async function fetchGraph(
+  mapId: string = "default_map"
+): Promise<GraphData> {
   const [nodes, edges] = await Promise.all([
     fetchGraphNodes(mapId),
     fetchGraphEdges(mapId),
@@ -578,9 +580,7 @@ export async function fetchOrder(orderId: number): Promise<Order> {
 export async function fetchAgvStates(
   serialNumber: string
 ): Promise<AGVState[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/agvs/${serialNumber}/states/`
-  )
+  const response = await fetch(`${API_BASE_URL}/agvs/${serialNumber}/states/`)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch AGV states: ${response.statusText}`)

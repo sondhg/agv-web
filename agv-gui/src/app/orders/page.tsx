@@ -110,8 +110,8 @@ export default function OrdersPage() {
 
       {/* Auto-refresh indicator */}
       <div className="text-xs text-muted-foreground">
-        Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refreshing
-        every 3 seconds
+        Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refreshing every
+        3 seconds
       </div>
 
       {/* Error Display */}
@@ -145,22 +145,22 @@ export default function OrdersPage() {
               <table className="w-full">
                 <thead className="border-b bg-muted/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       Order ID
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       AGV
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       Path
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       Created
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium tracking-wider uppercase">
                       Updated
                     </th>
                   </tr>

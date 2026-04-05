@@ -24,6 +24,7 @@ This document provides essential instructions, commands, and coding standards fo
 **All commands below must be run from the `agv-gui/` directory.**
 
 ### Development Workflow
+
 ```bash
 # Install dependencies (first time or after package.json changes)
 pnpm install
@@ -39,6 +40,7 @@ pnpm preview
 ```
 
 ### Code Quality Commands
+
 ```bash
 # Lint TypeScript/React files
 pnpm lint
@@ -51,6 +53,7 @@ pnpm typecheck
 ```
 
 ### Example Workflow
+
 ```bash
 # Before committing changes:
 pnpm lint          # Fix linting issues
@@ -66,6 +69,7 @@ pnpm build         # Ensure build succeeds
 **Note**: This project currently has no test framework configured.
 
 If implementing tests:
+
 - Consider Vitest (recommended for Vite projects)
 - Add test scripts to `package.json`
 - Document test commands in this section
@@ -77,6 +81,7 @@ If implementing tests:
 ### TypeScript Guidelines
 
 #### Type Safety
+
 - **Strict mode enabled**: All TypeScript strict checks are active
 - **No implicit any**: Always specify types explicitly
 - **No unused variables**: Remove or prefix with `_` if intentionally unused
@@ -87,6 +92,7 @@ If implementing tests:
   ```
 
 #### Naming Conventions
+
 - **Components**: `PascalCase` (e.g., `Button`, `UserProfile`)
 - **Files**: Match component names (e.g., `Button.tsx`, `UserProfile.tsx`)
 - **Hooks**: `camelCase` with `use` prefix (e.g., `useTheme`, `useAgvData`)
@@ -94,7 +100,9 @@ If implementing tests:
 - **Variables/Functions**: `camelCase` (e.g., `userData`, `fetchAgvStatus`)
 
 #### Imports Organization
+
 Group imports in the following order (separated by blank lines):
+
 1. React/React ecosystem
 2. Third-party libraries
 3. Local components (using `@/` alias)
@@ -120,6 +128,7 @@ import "./index.css"
 ### React Guidelines
 
 #### Component Structure
+
 - **Functional components only**: Use hooks, not class components
 - **Named exports**: Prefer named exports over default exports (except for main App)
 - **Component organization**:
@@ -131,14 +140,17 @@ import "./index.css"
   ```
 
 #### Hooks Rules
+
 - Call hooks at the top level (not in loops/conditions)
 - Follow React Hooks rules (ESLint will catch violations)
 - Custom hooks must start with `use` prefix
 
 #### Props & Types
+
 - Define explicit prop types for all components
 - Use `interface` for props (not `type`)
 - Prefer destructuring props in function signature
+
   ```typescript
   interface ButtonProps {
     variant?: "default" | "outline"
@@ -147,7 +159,11 @@ import "./index.css"
     onClick?: () => void
   }
 
-  export function Button({ variant = "default", size = "md", ...props }: ButtonProps) {
+  export function Button({
+    variant = "default",
+    size = "md",
+    ...props
+  }: ButtonProps) {
     // Component implementation
   }
   ```
@@ -155,6 +171,7 @@ import "./index.css"
 ### Styling with Tailwind CSS
 
 #### Class Organization
+
 - Use the `cn()` utility from `@/lib/utils` to merge class names
 - Order: layout → spacing → sizing → colors → typography → effects
 - Use Tailwind's responsive prefixes: `sm:`, `md:`, `lg:`, `xl:`
@@ -179,13 +196,16 @@ import "./index.css"
 ```
 
 #### shadcn/ui Components
+
 - Use shadcn/ui components as base primitives
 - Components live in `src/components/ui/`
 - Customize via `cva` (class-variance-authority)
 - Add new components: `npx shadcn@latest add <component-name>`
 
 ### Prettier Configuration
+
 Follow the `.prettierrc` settings:
+
 - **No semicolons** (enforced)
 - **Double quotes** for strings
 - **Line length**: 80 characters
@@ -194,7 +214,9 @@ Follow the `.prettierrc` settings:
 - **LF** line endings
 
 ### Path Aliases
+
 Use the `@/` alias for cleaner imports:
+
 ```typescript
 // ✅ Good
 import { Button } from "@/components/ui/button"
@@ -210,18 +232,21 @@ import { cn } from "../../../lib/utils"
 ## 5. Error Handling & Best Practices
 
 ### Error Handling
+
 - Use try-catch for async operations
 - Display user-friendly error messages
 - Log errors to console in development
 - Consider error boundaries for React component errors
 
 ### Performance
+
 - Use React.memo() for expensive components
 - Lazy load routes/components: `const Component = lazy(() => import("./Component"))`
 - Optimize images (use WebP, lazy loading)
 - Monitor bundle size: check `pnpm build` output
 
 ### Accessibility
+
 - Use semantic HTML elements
 - Include ARIA labels where needed
 - Ensure keyboard navigation works
@@ -286,6 +311,7 @@ agv-gui/
 ## 8. Common Patterns & Examples
 
 ### Creating a New Component
+
 ```typescript
 // src/components/AgvCard.tsx
 import { Card } from "@/components/ui/card"
@@ -310,6 +336,7 @@ export function AgvCard({ id, status, battery, className }: AgvCardProps) {
 ```
 
 ### Creating a Custom Hook
+
 ```typescript
 // src/hooks/useAgvStatus.ts
 import { useState, useEffect } from "react"
