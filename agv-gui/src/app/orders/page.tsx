@@ -129,6 +129,37 @@ export default function OrdersPage() {
         </div>
       )}
 
+      {/* Summary Stats */}
+      {!loading && !error && orders.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-2xl font-bold">{orders.length}</div>
+            <div className="text-xs text-muted-foreground">Total Orders</div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-2xl font-bold">
+              {orders.filter((o) => o.status === "ACTIVE").length}
+            </div>
+            <div className="text-xs text-muted-foreground">Active</div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-2xl font-bold">
+              {orders.filter((o) => o.status === "COMPLETED").length}
+            </div>
+            <div className="text-xs text-muted-foreground">Completed</div>
+          </div>
+          <div className="rounded-lg border bg-card p-4">
+            <div className="text-2xl font-bold">
+              {
+                orders.filter((o) =>
+                  ["REJECTED", "FAILED", "CANCELLED"].includes(o.status)
+                ).length
+              }
+            </div>
+            <div className="text-xs text-muted-foreground">Failed</div>
+          </div>
+        </div>
+      )}
       {/* Orders Table */}
       {!loading && !error && (
         <div className="rounded-lg border bg-card">
@@ -214,37 +245,6 @@ export default function OrdersPage() {
         </div>
       )}
 
-      {/* Summary Stats */}
-      {!loading && !error && orders.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <div className="rounded-lg border bg-card p-4">
-            <div className="text-2xl font-bold">{orders.length}</div>
-            <div className="text-xs text-muted-foreground">Total Orders</div>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "ACTIVE").length}
-            </div>
-            <div className="text-xs text-muted-foreground">Active</div>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <div className="text-2xl font-bold">
-              {orders.filter((o) => o.status === "COMPLETED").length}
-            </div>
-            <div className="text-xs text-muted-foreground">Completed</div>
-          </div>
-          <div className="rounded-lg border bg-card p-4">
-            <div className="text-2xl font-bold">
-              {
-                orders.filter((o) =>
-                  ["REJECTED", "FAILED", "CANCELLED"].includes(o.status)
-                ).length
-              }
-            </div>
-            <div className="text-xs text-muted-foreground">Failed</div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
