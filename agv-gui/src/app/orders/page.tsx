@@ -5,6 +5,7 @@ import { Loader2, RefreshCw, Package, CheckCircle2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { OrderDetailsDialog } from "@/components/order-details-dialog"
 import { fetchOrders, fetchAgvs } from "@/lib/api"
 import type { Order, Agv } from "@/lib/api"
 
@@ -14,6 +15,8 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   // Auto-refresh every 3 seconds
   useEffect(() => {
@@ -74,8 +77,23 @@ export default function OrdersPage() {
     return order.nodes.map((n) => n.nodeId).join(" → ")
   }
 
+  function handleOrderClick(order: Order) {
+    setSelectedOrder(order)
+    setDialogOpen(true)
+  }
+
   return (
     <div className="container mx-auto space-y-6 py-10">
+      {/* Order Details Dialog */}
+      <OrderDetailsDialog
+        order={selectedOrder}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        agvSerialNumber={
+          selectedOrder ? getAgvSerialNumber(selectedOrder.agv) : ""
+        }
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -151,7 +169,8 @@ export default function OrdersPage() {
                   {orders.map((order) => (
                     <tr
                       key={order.id}
-                      className="hover:bg-muted/50 transition-colors"
+                      onClick={() => handleOrderClick(order)}
+                      className="cursor-pointer transition-colors hover:bg-muted/50"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center space-x-2">
