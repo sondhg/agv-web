@@ -6,6 +6,15 @@ import { Loader2, CheckCircle2, XCircle, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { createTask, fetchGraphNodes } from "@/lib/api"
 import type { TaskResponse, GraphNode } from "@/lib/api"
 
@@ -120,47 +129,57 @@ export default function CreateTaskPage() {
       {/* Task Creation Form */}
       <div className="rounded-lg border bg-card p-6">
         <div className="space-y-6">
-          {/* Pickup Node Selector - Using native HTML select temporarily */}
+          {/* Pickup Node Selector */}
           <div className="space-y-2">
             <Label htmlFor="pickup-node">Pickup Node</Label>
-            <select
-              id="pickup-node"
+            <Select
               value={pickupNodeId}
-              onChange={(e) => setPickupNodeId(e.target.value)}
+              onValueChange={setPickupNodeId}
               disabled={nodesLoading || !!nodesError}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="">Select pickup location</option>
-              {nodes.map((node) => (
-                <option key={node.id} value={node.node_id}>
-                  {node.node_id}
-                  {node.description && ` - ${node.description}`}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select pickup location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Select pickup location</SelectLabel>
+                  {nodes.map((node) => (
+                    <SelectItem key={node.id} value={node.node_id}>
+                      {node.node_id}
+                      {node.description && ` - ${node.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">
               The location where the AGV will pick up the load
             </p>
           </div>
 
-          {/* Delivery Node Selector - Using native HTML select temporarily */}
+          {/* Delivery Node Selector */}
           <div className="space-y-2">
             <Label htmlFor="delivery-node">Delivery Node</Label>
-            <select
-              id="delivery-node"
+            <Select
               value={deliveryNodeId}
-              onChange={(e) => setDeliveryNodeId(e.target.value)}
+              onValueChange={setDeliveryNodeId}
               disabled={nodesLoading || !!nodesError}
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <option value="">Select delivery location</option>
-              {nodes.map((node) => (
-                <option key={node.id} value={node.node_id}>
-                  {node.node_id}
-                  {node.description && ` - ${node.description}`}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select delivery location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectLabel>Select delivery location</SelectLabel>
+                  {nodes.map((node) => (
+                    <SelectItem key={node.id} value={node.node_id}>
+                      {node.node_id}
+                      {node.description && ` - ${node.description}`}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">
               The destination where the AGV will deliver the load
             </p>
