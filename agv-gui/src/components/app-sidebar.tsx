@@ -25,6 +25,20 @@ import {
 const data = {
   navMain: [
     {
+      title: "Tasks & Orders",
+      url: "/tasks",
+      items: [
+        {
+          title: "Create Task",
+          url: "/tasks/create",
+        },
+        {
+          title: "Order Tracking",
+          url: "/orders",
+        },
+      ],
+    },
+    {
       title: "User Inputs",
       url: "/user-inputs",
       items: [
