@@ -1,0 +1,15 @@
+[project]
+name = "agv-system"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "django>=4.2",
+    "django-cors-headers>=4.0",
+    "djangorestframework>=3.14",
+    "networkx>=3.4.2",
+    "paho-mqtt>=1.6.1",
+    "psycopg2-binary>=2.9",
+    "python-dotenv>=1.0.0",
+]

@@ -199,7 +199,7 @@ export interface GraphData {
  * Fetch all graph nodes
  */
 export async function fetchGraphNodes(
-  mapId: string = "map_1"
+  mapId: string = "default_map"
 ): Promise<GraphNode[]> {
   const response = await fetch(`${API_BASE_URL}/graph/nodes/?map_id=${mapId}`)
 
@@ -214,7 +214,7 @@ export async function fetchGraphNodes(
  * Fetch all graph edges
  */
 export async function fetchGraphEdges(
-  mapId: string = "map_1"
+  mapId: string = "default_map"
 ): Promise<GraphEdge[]> {
   const response = await fetch(`${API_BASE_URL}/graph/edges/?map_id=${mapId}`)
 
@@ -228,7 +228,7 @@ export async function fetchGraphEdges(
 /**
  * Fetch complete graph (nodes + edges)
  */
-export async function fetchGraph(mapId: string = "map_1"): Promise<GraphData> {
+export async function fetchGraph(mapId: string = "default_map"): Promise<GraphData> {
   const [nodes, edges] = await Promise.all([
     fetchGraphNodes(mapId),
     fetchGraphEdges(mapId),
@@ -374,4 +374,217 @@ export async function deleteGraphEdge(id: number): Promise<void> {
       `Failed to delete edge: ${response.statusText} - ${JSON.stringify(errorData)}`
     )
   }
+}
+
+// ============================================
+// TASK & ORDER API (VDA5050 Transport Orders)
+// ============================================
+
+/**
+ * VDA5050 Node structure
+ * Represents a waypoint in the AGV's path
+ */
+export interface VDA5050Node {
+  nodeId: string
+  sequenceId: number
+  released: boolean
+  actions: unknown[]
+  nodePosition: {
+    x: number
+    y: number
+    mapId: string
+  }
+}
+
+/**
+ * VDA5050 Edge structure
+ * Represents a path segment between two nodes
+ */
+export interface VDA5050Edge {
+  edgeId: string
+  sequenceId: number
+  startNodeId: string
+  endNodeId: string
+  released: boolean
+  maxSpeed: number
+}
+
+/**
+ * Order status lifecycle
+ * Follows VDA5050 standard + backend extensions
+ */
+export type OrderStatus =
+  | "CREATED" // Just created, will be sent to AGV
+  | "SENT" // Sent via MQTT to AGV
+  | "ACTIVE" // AGV is executing the order
+  | "QUEUED" // Waiting for previous order to complete
+  | "COMPLETED" // Successfully finished
+  | "REJECTED" // AGV rejected the order
+  | "CANCELLED" // Manually cancelled
+  | "FAILED" // Execution failed
+
+/**
+ * Transport Order
+ * Matches Django Order model (vda5050/models.py)
+ */
+export interface Order {
+  id: number
+  agv: number // AGV ID reference
+  header_id: number
+  timestamp: string // ISO format
+  order_id: string // Unique order ID (e.g., "ORD_A3F2B8C1")
+  order_update_id: number
+  zone_set_id: string
+  status: OrderStatus
+  nodes: VDA5050Node[]
+  edges: VDA5050Edge[]
+  rejection_reason?: string
+  created_at: string // ISO format
+  updated_at: string // ISO format
+}
+
+/**
+ * Task creation request
+ * Sent to /api/tasks/ to trigger auction
+ */
+export interface TaskRequest {
+  pickup_node_id: string
+  delivery_node_id: string
+}
+
+/**
+ * Task creation response
+ * Contains auction results and created order info
+ */
+export interface TaskResponse {
+  success: boolean
+  order_id: string
+  winner_agv: string
+  status: OrderStatus
+  message: string
+  pickup_node: string
+  delivery_node: string
+  path: string[] // Array of node IDs in execution order
+  error?: string
+}
+
+/**
+ * AGV State (Telemetry)
+ * Matches Django AGVState model (vda5050/models.py)
+ */
+export interface AGVState {
+  id: number
+  header_id: number
+  timestamp: string // ISO format (from AGV)
+  received_at: string // ISO format (server time)
+  order_id: string
+  last_node_id: string
+  last_node_sequence_id: number
+  driving: boolean
+  paused: boolean
+  operating_mode: string
+  battery_state: {
+    batteryCharge: number // Percentage (0-100)
+    batteryVoltage: number // Volts
+    batteryHealth: number // Percentage (0-100)
+  }
+  agv_position: {
+    x: number
+    y: number
+    theta: number // Radians
+    mapId: string
+    positionInitialized: boolean
+  }
+  velocity: {
+    vx: number // m/s
+    vy: number // m/s
+    omega: number // rad/s
+  }
+  safety_state: {
+    eStop: string // "NONE", "AUTOACK", "MANUAL"
+    fieldViolation: boolean
+  }
+  errors: unknown[]
+  loads: unknown[]
+}
+
+/**
+ * Creates a transport task (pickup → delivery)
+ * Triggers the auction-based bidding system
+ * Returns the winning AGV and created order
+ *
+ * @param task - Pickup and delivery node IDs
+ * @returns Auction results with winner AGV and order details
+ * @throws Error if no AGVs available or no path exists
+ */
+export async function createTask(task: TaskRequest): Promise<TaskResponse> {
+  const response = await fetch(`${API_BASE_URL}/tasks/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(task),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(
+      `Task creation failed: ${response.statusText} - ${JSON.stringify(errorData)}`
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetches all orders from the backend
+ * Orders are returned newest first
+ *
+ * @returns Array of all orders
+ */
+export async function fetchOrders(): Promise<Order[]> {
+  const response = await fetch(`${API_BASE_URL}/orders/`)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch orders: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetches a single order by ID
+ *
+ * @param orderId - Database ID of the order
+ * @returns Order details
+ */
+export async function fetchOrder(orderId: number): Promise<Order> {
+  const response = await fetch(`${API_BASE_URL}/orders/${orderId}/`)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch order: ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Fetches AGV state history (latest 100 states)
+ * States are returned newest first
+ *
+ * @param serialNumber - AGV serial number
+ * @returns Array of state snapshots
+ */
+export async function fetchAgvStates(
+  serialNumber: string
+): Promise<AGVState[]> {
+  const response = await fetch(
+    `${API_BASE_URL}/agvs/${serialNumber}/states/`
+  )
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch AGV states: ${response.statusText}`)
+  }
+
+  return response.json()
 }

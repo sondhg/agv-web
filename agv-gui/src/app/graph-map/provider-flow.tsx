@@ -66,7 +66,7 @@ const nodeDefaults = {
   sourcePosition: Position.Right,
   targetPosition: Position.Left,
   style: {
-    borderRadius: "100%",
+    // borderRadius: "100%",
     backgroundColor: "#fff",
     width: 50,
     height: 50,
