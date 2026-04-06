@@ -53,6 +53,8 @@ class BidCalculator:
         
         logger.debug("BidCalculator initialized")
 
+    CHARGING_RELEASE_THRESHOLD = 80.0
+
     @staticmethod
     def _build_greedy_invalid_result(battery, start_node):
         """Build a standardized invalid result for greedy-distance bidding."""
@@ -85,18 +87,25 @@ class BidCalculator:
             return None
         
         current_node = last_state.last_node_id
-        current_battery = last_state.battery_state.get('batteryCharge', 0)
+        battery_state = last_state.battery_state or {}
+
+        current_battery = battery_state.get('batteryCharge')
+        if current_battery is None:
+            current_battery = battery_state.get('charge', 0)
+
+        is_charging = bool(battery_state.get('charging', False))
         
         logger.debug(f"AGV {agv.serial_number}: Node={current_node}, Battery={current_battery}%")
         
         return {
             'current_node': current_node,
             'battery': current_battery,
+            'is_charging': is_charging,
             'is_valid': True
         }
     
-    @staticmethod
-    def check_battery_constraint(battery_percent):
+    @classmethod
+    def check_battery_constraint(cls, battery_percent, is_charging=False):
         """
         Check battery constraints.
         
@@ -109,6 +118,17 @@ class BidCalculator:
                 'penalty_factor': float # Penalty multiplier (1.0 = none, >1.0 = penalized)
             }
         """
+        # AGV at charging station stays locked for task allocation until >80%.
+        if is_charging and battery_percent < cls.CHARGING_RELEASE_THRESHOLD:
+            logger.info(
+                f"AGV charging lock: {battery_percent}% < "
+                f"{cls.CHARGING_RELEASE_THRESHOLD}% - REJECTED"
+            )
+            return {
+                'is_acceptable': False,
+                'penalty_factor': float('inf')
+            }
+
         if battery_percent < 10.0:
             # Below 10%: hard reject.
             logger.warning(f"Critical battery: {battery_percent}% - REJECTED")

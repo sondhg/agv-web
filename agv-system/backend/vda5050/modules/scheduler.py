@@ -1,4 +1,5 @@
 import uuid
+import time
 from django.utils import timezone
 from vda5050.models import AGV, AGVState, Order
 from vda5050.graph_engine import GraphEngine
@@ -75,7 +76,7 @@ class Scheduler:
         # (Signal post_save will automatically send MQTT)
         new_order_id = f"ORD_{uuid.uuid4().hex[:8].upper()}"
         
-        order = Order.objects.create(
+        Order.objects.create(
             header_id=0,
             timestamp=timezone.now(),
             order_id=new_order_id,
@@ -97,4 +98,59 @@ class Scheduler:
             "pickup_node": pickup_node_id,
             "delivery_node": delivery_node_id,
             "path": [n['nodeId'] for n in all_nodes]
+        }
+
+    def create_charging_order(
+        self, serial_number: str, start_node_id: str, charging_node_id: str
+    ):
+        """Create an auto-charging order and append a VDA5050 startCharging action.
+
+        This method finds a path from the AGV current node to a charging node,
+        injects a startCharging action into the final node, stores the order,
+        and returns a structured result.
+        """
+        # 1. Get AGV by serial number.
+        try:
+            agv = AGV.objects.get(serial_number=serial_number)
+        except AGV.DoesNotExist:
+            return {"success": False, "error": "AGV does not exist"}
+
+        # 2. Calculate path to charging station.
+        nodes, edges = self.graph_engine.get_path(start_node_id, charging_node_id)
+        if not nodes:
+            return {
+                "success": False,
+                "error": f"Path not found from {start_node_id} to {charging_node_id}",
+            }
+
+        # 3. Inject VDA 5050 startCharging action to the final node.
+        final_node = nodes[-1]
+        final_node.setdefault("actions", []).append(
+            {
+                "actionType": "startCharging",
+                "actionId": f"charge_{int(time.time())}",
+                "blockingType": "HARD",
+                "actionParameters": [],
+            }
+        )
+
+        # 4. Persist charging order in DB.
+        new_order_id = f"ORD_{uuid.uuid4().hex[:8].upper()}"
+        Order.objects.create(
+            header_id=0,
+            timestamp=timezone.now(),
+            order_id=new_order_id,
+            order_update_id=0,
+            zone_set_id="zone_1",
+            agv=agv,
+            status="CREATED",
+            nodes=nodes,
+            edges=edges,
+        )
+
+        # 5. Return structured result.
+        return {
+            "success": True,
+            "order_id": new_order_id,
+            "message": "Charging order created successfully",
         }
