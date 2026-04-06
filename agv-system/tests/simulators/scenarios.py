@@ -213,7 +213,7 @@ def generate_continuous_shift_scenario(duration_hours=2):
         "AGV_06": {"node": "Main_C", "battery": 65.0},
         "AGV_07": {"node": "Aisle_C", "battery": 85.0},
         "AGV_08": {"node": "Aisle_S", "battery": 95.0},
-        "AGV_09": {"node": "Aisle_N", "battery": 70.0},
+        "AGV_09": {"node": "Aisle_N", "battery": 20.0},
     }
     
     tasks = []

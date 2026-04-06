@@ -108,8 +108,12 @@ class SsiMarginalBidStrategy:
 
         current_node = state['current_node']
         battery = state['battery']
+        is_charging = state.get('is_charging', False)
 
-        battery_check = self.calculator.check_battery_constraint(battery)
+        battery_check = self.calculator.check_battery_constraint(
+            battery,
+            is_charging=is_charging,
+        )
         if not battery_check['is_acceptable']:
             return None
 

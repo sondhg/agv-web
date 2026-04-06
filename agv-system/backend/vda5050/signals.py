@@ -5,7 +5,8 @@ import paho.mqtt.client as mqtt
 import os
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from .models import Order, InstantAction
+from .models import AGVState, InstantAction, Order
+from .modules.battery_manager import BatteryManager
 
 logger = logging.getLogger(__name__)
 
@@ -87,3 +88,43 @@ def on_action_created(sender, instance, created, **kwargs):
             # Use .update() to write directly to DB, avoiding race condition
             InstantAction.objects.filter(pk=instance.pk).update(is_sent=True)
             logger.info(f"Database updated: InstantAction {instance.action_id} marked as SENT")
+
+
+@receiver(post_save, sender=AGVState)
+def check_agv_battery_state(sender, instance, created, **kwargs):
+    """Check AGV battery after each state save and trigger auto-charging when needed."""
+    agv = instance.agv
+    current_node_id = instance.last_node_id
+
+    # AGVState stores battery data in JSON field `battery_state`.
+    battery_data = instance.battery_state or {}
+    current_battery = battery_data.get("charge")
+
+    # Fallback keys for compatibility with different payload formats.
+    if current_battery is None:
+        current_battery = battery_data.get("batteryCharge")
+    if current_battery is None:
+        current_battery = battery_data.get("battery_charge")
+
+    # If AGV is already charging, do not create any charging order.
+    if battery_data.get("charging") is True:
+        return
+
+    # If battery value is unavailable or invalid, skip auto-charging safely.
+    if current_battery is None:
+        return
+
+    try:
+        current_battery = float(current_battery)
+    except (TypeError, ValueError):
+        return
+
+    try:
+        battery_mgr = BatteryManager()
+        battery_mgr.check_and_charge(
+            agv=agv,
+            current_battery=current_battery,
+            current_node_id=current_node_id,
+        )
+    except Exception as e:
+        print(f"[SIGNALS] Lỗi khi check battery: {e}")
