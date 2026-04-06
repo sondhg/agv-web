@@ -11,7 +11,7 @@ class EnergyConfig:
     """Physical constants for AGV energy calculations."""
 
     # Kinematic parameters
-    VELOCITY: float = 1.0            # m/s  - Translational velocity
+    VELOCITY: float = 10.0            # m/s  - Translational velocity
     ROTATION_SPEED: float = 30.0     # deg/s - Rotation speed
 
     # Power consumption rates (battery % per second)
