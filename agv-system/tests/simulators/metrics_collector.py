@@ -39,6 +39,7 @@ class MetricsCollector:
 
         # Order-level metrics
         self.order_records: list[dict] = []
+        self.aux_order_records: list[dict] = []
 
         # AGV-level tracking
         self.agv_task_count: dict[str, int] = defaultdict(int)
@@ -50,11 +51,13 @@ class MetricsCollector:
 
         # Task dispatch tracking (from server API)
         self.task_assignments: list[dict] = []
+        self.transport_order_ids: set[str] = set()
 
         # Bidding execution time (ms)
         self.bidding_times_ms: list[float] = []
 
         # Deadlock tracking
+        self.stuck_event_count: int = 0
         self.deadlock_count: int = 0
         self._deadlock_check_states: dict[str, dict] = {}  # agv -> {node, timestamp}
 
@@ -90,21 +93,30 @@ class MetricsCollector:
         Expected keys: agv, order_id, flow_time_s, energy_consumed_pct,
                        distance_m, wait_time_s, move_time_s, battery_remaining_pct
         """
-        with self._lock:
-            self.order_records.append(metrics)
+        agv = metrics["agv"]
+        order_id = metrics.get("order_id", "")
 
-            agv = metrics["agv"]
-            self.agv_task_count[agv] += 1
-            self.agv_total_flow_time[agv] += metrics.get("flow_time_s", 0)
-            self.agv_total_energy[agv] += metrics.get("energy_consumed_pct", 0)
-            self.agv_total_distance[agv] += metrics.get("distance_m", 0)
-            self.agv_total_wait_time[agv] += metrics.get("wait_time_s", 0)
-            self._last_order_completed = time.time()
+        with self._lock:
+            is_transport = order_id in self.transport_order_ids
+            record = dict(metrics)
+            record["order_type"] = "transport" if is_transport else "auxiliary"
+            self.order_records.append(record)
+
+            if is_transport:
+                self.agv_task_count[agv] += 1
+                self.agv_total_flow_time[agv] += metrics.get("flow_time_s", 0)
+                self.agv_total_energy[agv] += metrics.get("energy_consumed_pct", 0)
+                self.agv_total_distance[agv] += metrics.get("distance_m", 0)
+                self.agv_total_wait_time[agv] += metrics.get("wait_time_s", 0)
+                self._last_order_completed = time.time()
+            else:
+                self.aux_order_records.append(record)
 
         logger.info(
             f"[Metrics] Order {metrics.get('order_id', '?')} completed by {agv} | "
             f"Flow: {metrics.get('flow_time_s', 0):.1f}s | "
-            f"Energy: {metrics.get('energy_consumed_pct', 0):.2f}%"
+            f"Energy: {metrics.get('energy_consumed_pct', 0):.2f}% | "
+            f"Type: {'transport' if order_id in self.transport_order_ids else 'auxiliary'}"
         )
 
     def record_task_assignment(self, task_info: dict):
@@ -116,6 +128,9 @@ class MetricsCollector:
         """
         with self._lock:
             self.task_assignments.append(task_info)
+            order_id = task_info.get("order_id")
+            if order_id:
+                self.transport_order_ids.add(order_id)
             if "bidding_time_ms" in task_info:
                 self.bidding_times_ms.append(task_info["bidding_time_ms"])
             # Track first dispatch time for true makespan
@@ -166,7 +181,7 @@ class MetricsCollector:
             pass
 
     def _check_deadlock(self, serial: str, payload: dict):
-        """Detect potential deadlocks: AGV stuck at same node while driving."""
+        """Detect stuck events: AGV stuck at same node while driving."""
         node = payload.get("lastNodeId", "")
         driving = payload.get("driving", False)
         now = time.time()
@@ -177,10 +192,11 @@ class MetricsCollector:
             stuck_duration = now - prev["since"]
             if stuck_duration > 60:  # 60s threshold
                 if not prev.get("reported"):
-                    self.deadlock_count += 1
+                    self.stuck_event_count += 1
+                    self.deadlock_count = self.stuck_event_count  # legacy alias
                     self._deadlock_check_states[serial]["reported"] = True
                     logger.warning(
-                        f"[Metrics] Potential deadlock: {serial} stuck at {node} "
+                        f"[Metrics] Potential stuck event: {serial} stuck at {node} "
                         f"for {stuck_duration:.0f}s"
                     )
         else:
@@ -214,6 +230,7 @@ class MetricsCollector:
         headers = [
             "agv",
             "order_id",
+            "order_type",
             "flow_time_s",
             "energy_consumed_pct",
             "distance_m",
@@ -229,7 +246,10 @@ class MetricsCollector:
             for record in self.order_records:
                 writer.writerow(record)
 
-        logger.info(f"  -> {filepath} ({len(self.order_records)} orders)")
+        logger.info(
+            f"  -> {filepath} ({len(self.order_records)} orders, "
+            f"aux={len(self.aux_order_records)})"
+        )
         return filepath
 
     def _export_agv_summary(self, prefix: str) -> str:
@@ -313,6 +333,7 @@ class MetricsCollector:
             writer.writerow(["cv_distance", round(cv_dist, 4)])
             writer.writerow(["min_tasks", min(counts) if counts else 0])
             writer.writerow(["max_tasks", max(counts) if counts else 0])
+            writer.writerow(["stuck_event_count", self.stuck_event_count])
             writer.writerow(["deadlock_count", self.deadlock_count])
             writer.writerow([])
             writer.writerow(["agv", "tasks_completed", "distance_m"])
@@ -386,6 +407,7 @@ class MetricsCollector:
             # --- Scenario ---
             writer.writerow(["scenario", self.scenario_name])
             writer.writerow(["num_agvs", len(self.agv_task_count)])
+            writer.writerow(["aux_orders_completed", len(self.aux_order_records)])
             # --- Time & Efficiency ---
             writer.writerow(["simulation_duration_s", round(sim_duration, 2)])
             writer.writerow(["makespan_s", round(makespan, 2)])
@@ -400,16 +422,11 @@ class MetricsCollector:
             writer.writerow(["total_distance_m", round(total_distance, 2)])
             # --- Load Balance & Robustness ---
             writer.writerow(["cv_distance", round(cv_distance, 4)])
+            writer.writerow(["stuck_event_count", self.stuck_event_count])
             writer.writerow(["deadlock_count", self.deadlock_count])
             # --- Algorithm Overhead ---
             writer.writerow(["avg_bidding_time_ms", round(avg_bid_ms, 2)])
             writer.writerow(["max_bidding_time_ms", round(max_bid_ms, 2)])
-            writer.writerow(["min_bidding_time_ms", round(min_bid_ms, 2)])
-            writer.writerow(["makespan_s", round(makespan, 2)])
-            writer.writerow(["total_energy_consumed_pct", round(total_energy, 3)])
-            writer.writerow(["total_distance_m", round(total_distance, 2)])
-            writer.writerow(["total_wait_time_s", round(total_wait, 2)])
-            writer.writerow(["avg_flow_time_per_task_s", round(total_flow_time / max(total_tasks, 1), 2)])
             writer.writerow(["min_bidding_time_ms", round(min_bid_ms, 2)])
 
         logger.info(f"  -> {filepath}")
@@ -484,6 +501,8 @@ class MetricsCollector:
             print(f"  [Load Balance & Robustness]")
             print(f"    CV (Tasks):    {cv_tasks:.4f}  (0=perfect, <0.3=good, >0.5=poor)")
             print(f"    CV (Distance): {cv_dist:.4f}")
-            print(f"    Deadlock Count: {self.deadlock_count}")
+            print(f"    Stuck Events:  {self.stuck_event_count}")
+            print(f"    Deadlock Count (legacy): {self.deadlock_count}")
+            print(f"    Auxiliary Orders: {len(self.aux_order_records)}")
 
         print(f"{'=' * 70}\n")

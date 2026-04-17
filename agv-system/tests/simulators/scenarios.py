@@ -60,7 +60,7 @@ def generate_continuous_shift_scenario(duration_hours=2):
         
         # Thời gian giữa các order mới (Random từ 15 giây đến 45 giây có 1 order)
         # Bạn có thể giảm con số này xuống nếu muốn test nhà máy công suất cao (vd: 10, 20)
-        current_delay += random.randint(15, 45)
+        current_delay += random.randint(10, 20)
         
     return {
         "name": "continuous_shift",

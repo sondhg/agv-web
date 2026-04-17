@@ -20,6 +20,10 @@ K_TIME = 0.5            # Weight for time cost
 # epsilon = 0: Pure MiniMax (Load balancing)
 EPSILON = 0.5
 
+# Reservation-aware waiting penalties (higher => avoid congested routes)
+WAIT_CONFLICT_PENALTY = 1.25
+UNREACHABLE_ROUTE_PENALTY = 10.0
+
 # Auction strategy feature flag
 # 'SSI_MARGINAL': Existing SSI marginal-cost algorithm (default)
 # 'GREEDY_DISTANCE': Baseline nearest-neighbor by distance to pickup
