@@ -7,6 +7,9 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 import paho.mqtt.client as mqtt
 from vda5050.models import AGV, AGVState, Order
+from vda5050.graph_engine import GraphEngine
+from vda5050.modules.deadlock import DeadlockMonitorService
+from vda5050.modules.reservation import ReservationService
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("Starting MQTT Listener..."))
+        self.graph_engine = GraphEngine()
+        self.deadlock_monitor = DeadlockMonitorService(
+            stuck_threshold_s=float(os.environ.get("DEADLOCK_STUCK_THRESHOLD_S", "45")),
+            position_epsilon_m=float(os.environ.get("DEADLOCK_POSITION_EPS_M", "0.2")),
+        )
+        self.reservation_service = ReservationService()
+        self._progress_cache = {}
+        self._eta_speed_mps = float(os.environ.get("AGV_PROGRESS_ETA_SPEED_MPS", "10.0"))
+        self._horizon_release_window_seq = int(
+            os.environ.get("HORIZON_RELEASE_WINDOW_SEQ", "4")
+        )
 
         mqtt_broker = os.environ.get("MQTT_BROKER", "mqtt")
         mqtt_port = int(os.environ.get("MQTT_PORT", "1883"))
@@ -124,6 +138,8 @@ class Command(BaseCommand):
         # Use order_id from payload to identify the running order
         current_order_id = payload.get("orderId")
 
+        self.check_deadlock_monitor(agv, state, current_order_id)
+
         # If the AGV is running an Order (has ID)
         if state.order_id:
             self.update_order_status(agv, state, current_order_id)
@@ -133,10 +149,34 @@ class Command(BaseCommand):
         if not state.driving and (not current_order_id or current_order_id == ""):
             self.check_and_process_queue(agv)
 
+    def check_deadlock_monitor(self, agv, state, current_order_id):
+        """Run server-side deadlock monitor and emit potential events."""
+        try:
+            monitor_result = self.deadlock_monitor.process_state(
+                agv=agv,
+                state=state,
+                order_id=current_order_id,
+            )
+            if monitor_result:
+                logger.warning(
+                    "[DeadlockMonitor] event_id=%s created=%s agv=%s order_id=%s node=%s sequence=%s stuck=%.2fs",
+                    monitor_result["event_id"],
+                    monitor_result["created"],
+                    agv.serial_number,
+                    monitor_result["order_id"],
+                    monitor_result["node_id"],
+                    monitor_result["sequence_id"],
+                    monitor_result["stuck_duration_s"],
+                )
+        except Exception as exc:
+            logger.error("Deadlock monitor failed for %s: %s", agv.serial_number, exc)
+
     def update_order_status(self, agv, state, current_order_id):
         """Logic to update Order status and trigger Queue if done"""
         try:
             order = Order.objects.get(order_id=current_order_id, agv=agv)
+            self.log_order_progress(agv, state, order)
+            self.maybe_release_horizon_segment(agv, state, order)
 
             # Handle Rejection (AGV reports error -> Server marks Order as rejected)
             if state.errors:
@@ -154,6 +194,10 @@ class Command(BaseCommand):
                                 f"{err.get('errorType')}: {err.get('errorDescription')}"
                             )
                             order.save()
+                            self.reservation_service.release_order_reservations(
+                                order,
+                                reason="order_rejected",
+                            )
                             logger.warning(
                                 f"Order {order.order_id} REJECTED by AGV: {order.rejection_reason}"
                             )
@@ -171,7 +215,6 @@ class Command(BaseCommand):
             # AND Driving = FALSE
             if order.nodes:  # Make sure order has nodes
                 last_node_in_order = order.nodes[-1]["nodeId"]  # Lấy ID node cuối
-                last_seq_id = order.nodes[-1]["sequenceId"]
 
                 # Compare with AGV reports
                 # Note: VDA standard checks both sequenceId to avoid duplicate loops
@@ -179,12 +222,108 @@ class Command(BaseCommand):
                     if order.status != Order.OrderStatus.COMPLETED:
                         order.status = Order.OrderStatus.COMPLETED
                         order.save()
+                        self.reservation_service.release_order_reservations(
+                            order,
+                            reason="order_completed",
+                        )
                         logger.info(f"Order {order.order_id} COMPLETED!")
 
                         self.check_and_process_queue(agv)
 
         except Order.DoesNotExist:
             pass  # No matching order found
+
+    def maybe_release_horizon_segment(self, agv, state, order):
+        """Progressively release additional route segments for horizon-based orders."""
+        if not order.nodes or not order.edges:
+            return
+
+        current_seq = int(state.last_node_sequence_id or 0)
+        release_upto_seq = current_seq + max(self._horizon_release_window_seq, 2)
+
+        node_updates = []
+        node_changed = False
+        for node in order.nodes:
+            node_copy = dict(node)
+            node_seq = int(node_copy.get("sequenceId", 0))
+            if not bool(node_copy.get("released", True)) and node_seq <= release_upto_seq:
+                node_copy["released"] = True
+                node_changed = True
+            node_updates.append(node_copy)
+
+        edge_updates = []
+        edge_changed = False
+        for edge in order.edges:
+            edge_copy = dict(edge)
+            edge_seq = int(edge_copy.get("sequenceId", 0))
+            if not bool(edge_copy.get("released", True)) and edge_seq <= release_upto_seq:
+                edge_copy["released"] = True
+                edge_changed = True
+            edge_updates.append(edge_copy)
+
+        if not (node_changed or edge_changed):
+            return
+
+        order.nodes = node_updates
+        order.edges = edge_updates
+        order.order_update_id = int(order.order_update_id or 0) + 1
+        order.save(update_fields=["nodes", "edges", "order_update_id", "updated_at"])
+        self.publish_order_update(order)
+
+        logger.info(
+            "[HorizonRelease] order_id=%s agv=%s released_upto_seq=%s update_id=%s",
+            order.order_id,
+            agv.serial_number,
+            release_upto_seq,
+            order.order_update_id,
+        )
+
+    def estimate_remaining_eta_s(self, order, current_node_id):
+        """Estimate remaining travel ETA to the order final node."""
+        if not order.nodes or not current_node_id:
+            return None
+
+        final_node = order.nodes[-1].get("nodeId")
+        if not final_node or final_node == current_node_id:
+            return 0.0
+
+        remaining_distance = self.graph_engine.get_path_cost(current_node_id, final_node)
+        if remaining_distance == float("inf"):
+            return None
+
+        eta = remaining_distance / max(self._eta_speed_mps, 0.1)
+        return round(eta, 2)
+
+    def log_order_progress(self, agv, state, order):
+        """Log order progress with context for debugging and traceability."""
+        cache_key = agv.serial_number
+        current_seq = int(state.last_node_sequence_id or 0)
+        current_node = state.last_node_id or ""
+        current_driving = bool(state.driving)
+
+        prev = self._progress_cache.get(cache_key)
+        if prev == (order.order_id, current_seq, current_node, current_driving):
+            return
+
+        eta_s = self.estimate_remaining_eta_s(order, current_node)
+        eta_str = "unknown" if eta_s is None else f"{eta_s:.2f}s"
+
+        logger.info(
+            "[OrderProgress] order_id=%s agv=%s sequence=%s node=%s driving=%s eta=%s",
+            order.order_id,
+            agv.serial_number,
+            current_seq,
+            current_node,
+            current_driving,
+            eta_str,
+        )
+
+        self._progress_cache[cache_key] = (
+            order.order_id,
+            current_seq,
+            current_node,
+            current_driving,
+        )
 
     def check_and_process_queue(self, agv):
         """Check and send next queued order if available"""
@@ -245,6 +384,27 @@ class Command(BaseCommand):
             )
         except Exception as e:
             logger.error(f"Failed to dispatch queued order: {e}")
+
+    def publish_order_update(self, order):
+        """Publish order update with incremented orderUpdateId."""
+        agv = order.agv
+        topic = f"uagv/v2/{agv.manufacturer}/{agv.serial_number}/order"
+        payload = {
+            "headerId": order.header_id,
+            "timestamp": timezone.now().isoformat(),
+            "version": "2.1.0",
+            "manufacturer": agv.manufacturer,
+            "serialNumber": agv.serial_number,
+            "orderId": order.order_id,
+            "orderUpdateId": order.order_update_id,
+            "zoneSetId": order.zone_set_id,
+            "nodes": order.nodes,
+            "edges": order.edges,
+        }
+        try:
+            self.mqtt_client.publish(topic, json.dumps(payload), qos=1)
+        except Exception as exc:
+            logger.error("Failed to publish order update %s: %s", order.order_id, exc)
 
     def on_disconnect(self, client, userdata, rc):
         if rc != 0:

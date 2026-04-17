@@ -188,7 +188,14 @@ class SimulationRunner:
                         }
                     )
                 else:
-                    error = resp.json().get("error", resp.text)
+                    content_type = (resp.headers.get("content-type") or "").lower()
+                    if "application/json" in content_type:
+                        try:
+                            error = resp.json().get("error", resp.text)
+                        except ValueError:
+                            error = resp.text
+                    else:
+                        error = resp.text
                     logger.error(f"    -> Failed: {error}")
 
             except requests.RequestException as e:

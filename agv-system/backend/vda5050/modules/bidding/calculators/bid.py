@@ -6,12 +6,15 @@ Responsible for marginal-cost estimation, bid scoring, and constraints.
 import logging
 from vda5050.models import AGVState, Order
 from vda5050.graph_engine import GraphEngine
+from vda5050.modules.reservation import ReservationService
 from .transport import TransportCalculator
 from .baseline import BaselineCalculator
 from .greedy_bid import GreedyBidStrategy
 from .ssi_marginal_bid import SsiMarginalBidStrategy
 from ...constant import (
-    DEFAULT_LOAD_KG
+    DEFAULT_LOAD_KG,
+    WAIT_CONFLICT_PENALTY,
+    UNREACHABLE_ROUTE_PENALTY,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,7 @@ class BidCalculator:
             self.graph_engine, 
             self.transport_calculator
         )
+        self.reservation_service = ReservationService()
         self.greedy_strategy = GreedyBidStrategy(self)
         self.ssi_strategy = SsiMarginalBidStrategy(self)
         
@@ -271,6 +275,39 @@ class BidCalculator:
         return self.ssi_strategy.calculate_marginal_cost(
             agv, pickup_node_id, delivery_node_id=delivery_node_id, load_kg=load_kg
         )
+
+    def estimate_conflict_penalty(self, agv, start_node, pickup_node_id, delivery_node_id=None):
+        """Estimate waiting/deadlock risk from active reservations for candidate route."""
+        leg1_nodes, leg1_edges = self.graph_engine.get_path(start_node, pickup_node_id)
+        if not leg1_nodes:
+            return {
+                "conflict_count": 999,
+                "conflict_penalty": UNREACHABLE_ROUTE_PENALTY,
+            }
+
+        all_nodes = leg1_nodes
+        all_edges = leg1_edges
+
+        if delivery_node_id:
+            leg2_nodes, leg2_edges = self.graph_engine.get_path(pickup_node_id, delivery_node_id)
+            if not leg2_nodes:
+                return {
+                    "conflict_count": 999,
+                    "conflict_penalty": UNREACHABLE_ROUTE_PENALTY,
+                }
+            all_nodes = leg1_nodes + leg2_nodes[1:]
+            all_edges = leg1_edges + leg2_edges
+
+        conflict_result = self.reservation_service.detect_conflicts(
+            agv=agv,
+            nodes=all_nodes,
+            edges=all_edges,
+        )
+        conflict_count = len(conflict_result.node_conflicts) + len(conflict_result.edge_conflicts)
+        return {
+            "conflict_count": conflict_count,
+            "conflict_penalty": conflict_count * WAIT_CONFLICT_PENALTY,
+        }
     
     def calculate_bid_score(self, marginal_cost_result, epsilon=None):
         """
