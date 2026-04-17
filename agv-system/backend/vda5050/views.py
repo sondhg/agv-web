@@ -1,11 +1,12 @@
 from django.db import models, transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 import networkx as nx
 
-from .models import AGV, Order, GraphNode, GraphEdge
+from .models import AGV, Order, AGVState, GraphNode, GraphEdge
 from .serializers import (
     AGVSerializer,
     OrderSerializer,
@@ -22,6 +23,16 @@ class AGVViewSet(viewsets.ModelViewSet):
     queryset = AGV.objects.all()
     serializer_class = AGVSerializer
     lookup_field = 'serial_number' # Find AGV by serial number (e.g: /api/agvs/AGV_01/)
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        return queryset.prefetch_related(
+            Prefetch(
+                "states",
+                queryset=AGVState.objects.order_by("-timestamp"),
+                to_attr="prefetched_states",
+            )
+        )
 
     @action(detail=True, methods=['get'])
     def states(self, request, serial_number=None):

@@ -41,6 +41,42 @@ class AGV(models.Model):
     def __str__(self):
         return f"{self.manufacturer} - {self.serial_number}"
 
+    def get_latest_state(self):
+        """Return the most recent AGVState, using prefetched data when available."""
+        prefetched_states = getattr(self, "prefetched_states", None)
+        if prefetched_states is not None:
+            return prefetched_states[0] if prefetched_states else None
+
+        return self.states.order_by("-timestamp").first()
+
+    def get_battery_level(self):
+        """Return the latest battery charge value for the AGV."""
+        latest_state = self.get_latest_state()
+        if not latest_state:
+            return None
+
+        battery_state = latest_state.battery_state or {}
+        battery_value = battery_state.get("batteryCharge")
+        if battery_value is None:
+            battery_value = battery_state.get("charge")
+
+        return battery_value
+
+    def get_operational_state(self):
+        """Return MOVING, IDLE, or CHARGING from the latest state."""
+        latest_state = self.get_latest_state()
+        if not latest_state:
+            return "IDLE"
+
+        battery_state = latest_state.battery_state or {}
+        if battery_state.get("charging") is True:
+            return "CHARGING"
+
+        if latest_state.driving:
+            return "MOVING"
+
+        return "IDLE"
+
 
 # ============================================
 # ORDER MANAGEMENT 
