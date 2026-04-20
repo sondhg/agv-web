@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { useState, useEffect } from "react"
 import { Loader2, RefreshCw, Package, CheckCircle2 } from "lucide-react"
 

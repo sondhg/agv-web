@@ -1,8 +1,7 @@
 "use client"
 
-import * as React from "react"
 import { useState, useEffect } from "react"
-import { Loader2, RefreshCw, Car } from "lucide-react"
+import { Loader2, RefreshCw, Car, Wifi, WifiOff } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,102 +18,98 @@ import { AgvDetailsModal } from "@/components/agv-details-modal"
 
 import { fetchAgvs, fetchAgvStates } from "@/lib/api"
 import type { Agv } from "@/types/agv"
-import type { AGVState } from "@/lib/api"
+import { useMqttTelemetry } from "@/contexts/MqttContext"
 
 export default function FleetDashboardPage() {
   const [agvs, setAgvs] = useState<Agv[]>([])
-  const [agvStates, setAgvStates] = useState<Record<string, AGVState | null>>(
-    {}
-  )
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
 
   const [selectedAgv, setSelectedAgv] = useState<Agv | null>(null)
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
 
-  const isPollingRef = React.useRef(false)
+  // Use MQTT Telemetry instead of HTTP polling
+  const { agvStates, agvConnections, isConnected, setInitialStates, setInitialConnections } = useMqttTelemetry()
 
-  // Auto-refresh every 3 seconds, wait for previous request to finish
+  // Only load statically once
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
     let mounted = true
 
-    const pollData = async () => {
+    const loadData = async () => {
       if (!mounted) return
-      if (isPollingRef.current) {
-        timeoutId = setTimeout(pollData, 3000)
-        return
-      }
+      setLoading(true)
+      setError(null)
 
-      isPollingRef.current = true
       try {
-        await loadData(false)
-      } finally {
-        isPollingRef.current = false
+        // 1. Fetch all AGVs
+        const agvsData = await fetchAgvs()
+        if (!mounted) return
+        setAgvs(agvsData)
+        setInitialConnections(agvsData)
+
+        // 2. Fetch latest state for each AGV just once on initial load
+        // so we don't have blank cards while waiting for the first MQTT message
+        const statesMap: Record<string, import("@/lib/api").AGVState | null> = {}
+
+        await Promise.all(
+          agvsData.map(async (agv) => {
+            try {
+              const states = await fetchAgvStates(agv.serial_number)
+              statesMap[agv.serial_number] = states.length > 0 ? states[0] : null
+            } catch (e) {
+              console.warn(
+                `Failed to fetch initial state for AGV ${agv.serial_number}`,
+                e
+              )
+              statesMap[agv.serial_number] = null
+            }
+          })
+        )
+
         if (mounted) {
-          timeoutId = setTimeout(pollData, 3000)
+          setInitialStates(statesMap)
         }
+      } catch (err) {
+        console.error("Failed to load initial fleet data:", err)
+        if (mounted) {
+          setError(err instanceof Error ? err.message : "Failed to load fleet data")
+        }
+      } finally {
+        if (mounted) setLoading(false)
       }
     }
 
-    // Initial load
-    loadData(true).then(() => {
-      if (mounted) {
-        timeoutId = setTimeout(pollData, 3000)
-      }
-    })
+    loadData()
 
     return () => {
       mounted = false
-      clearTimeout(timeoutId)
     }
-  }, [])
-
-  async function loadData(showLoading = true) {
-    if (showLoading) setLoading(true)
-    setError(null)
-
-    try {
-      // 1. Fetch all AGVs
-      const agvsData = await fetchAgvs()
-      setAgvs(agvsData)
-
-      // 2. Fetch latest state for each AGV
-      const statesMap: Record<string, AGVState | null> = {}
-
-      await Promise.all(
-        agvsData.map(async (agv) => {
-          try {
-            const states = await fetchAgvStates(agv.serial_number)
-            statesMap[agv.serial_number] = states.length > 0 ? states[0] : null
-          } catch (e) {
-            console.warn(
-              `Failed to fetch state for AGV ${agv.serial_number}`,
-              e
-            )
-            statesMap[agv.serial_number] = null
-          }
-        })
-      )
-
-      setAgvStates(statesMap)
-      setLastRefresh(new Date())
-    } catch (err) {
-      console.error("Failed to load fleet data:", err)
-      setError(err instanceof Error ? err.message : "Failed to load fleet data")
-    } finally {
-      if (showLoading) setLoading(false)
-    }
-  }
+  }, [setInitialStates, setInitialConnections])
 
   function handleAgvClick(agv: Agv) {
     setSelectedAgv(agv)
     setDetailsModalOpen(true)
   }
 
-  // Calculate some overview stats
-  const onlineAgvsCount = agvs.filter((a) => a.is_online).length
+  function handleManualRefresh() {
+    // Only refresh the static definitions
+    setLoading(true)
+    fetchAgvs()
+      .then((data) => {
+        setAgvs(data)
+        setInitialConnections(data)
+        setError(null)
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to refresh fleet data")
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }
+
+  // Calculate some overview stats using real-time data
+  const onlineAgvsCount = agvs.filter((a) => agvConnections[a.serial_number] ?? a.is_online).length
   const drivingAgvsCount = Object.values(agvStates).filter(
     (s) => s?.driving
   ).length
@@ -142,16 +137,21 @@ export default function FleetDashboardPage() {
             Monitor AGV fleet status in real-time
           </p>
         </div>
-        <Button onClick={() => loadData(true)} variant="outline" size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Auto-refresh indicator */}
-      <div className="text-xs text-muted-foreground">
-        Last updated: {lastRefresh.toLocaleTimeString()} • Auto-refreshing every
-        3 seconds
+        <div className="flex items-center space-x-4">
+          {isConnected ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200">
+              <Wifi className="mr-1 h-3 w-3" /> Live
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200">
+              <WifiOff className="mr-1 h-3 w-3" /> Disconnected
+            </Badge>
+          )}
+          <Button onClick={handleManualRefresh} variant="outline" size="sm" disabled={loading}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Error Display */}
@@ -163,7 +163,7 @@ export default function FleetDashboardPage() {
       )}
 
       {/* Loading State */}
-      {loading && !error && (
+      {loading && !error && agvs.length === 0 && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -180,7 +180,7 @@ export default function FleetDashboardPage() {
       )}
 
       {/* Overview Stats */}
-      {!loading && !error && agvs.length > 0 && (
+      {(!loading || agvs.length > 0) && !error && agvs.length > 0 && (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           <div className="rounded-lg border bg-card p-4">
             <div className="text-2xl font-bold">{agvs.length}</div>
@@ -208,25 +208,26 @@ export default function FleetDashboardPage() {
       )}
 
       {/* Fleet Grid */}
-      {!loading && !error && agvs.length > 0 && (
+      {(!loading || agvs.length > 0) && !error && agvs.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {agvs.map((agv) => {
             const state = agvStates[agv.serial_number]
+            const isOnline = agvConnections[agv.serial_number] ?? agv.is_online
             const charge = state?.battery_state?.batteryCharge ?? 0
 
-            // Time since last seen
-            const timeSinceLastSeen = agv.last_seen
-              ? Math.floor(
-                  (new Date().getTime() - new Date(agv.last_seen).getTime()) /
-                    1000
-                )
-              : null
-            const lastSeenText =
-              timeSinceLastSeen !== null
-                ? timeSinceLastSeen < 60
-                  ? `${timeSinceLastSeen}s ago`
-                  : `${Math.floor(timeSinceLastSeen / 60)}m ago`
-                : "Never"
+            // Time since last seen from MQTT is immediate if online, otherwise use DB last_seen
+            let lastSeenText = "Never"
+            if (isOnline) {
+              lastSeenText = "Live"
+            } else if (agv.last_seen) {
+              const timeSinceLastSeen = Math.floor(
+                (new Date().getTime() - new Date(agv.last_seen).getTime()) /
+                1000
+              )
+              lastSeenText = timeSinceLastSeen < 60
+                ? `${timeSinceLastSeen}s ago`
+                : `${Math.floor(timeSinceLastSeen / 60)}m ago`
+            }
 
             return (
               <Card
@@ -240,17 +241,29 @@ export default function FleetDashboardPage() {
                       {agv.serial_number}
                     </CardTitle>
                     <Badge
-                      variant={agv.is_online ? "default" : "destructive"}
+                      variant={isOnline ? "default" : "destructive"}
                       className={
-                        agv.is_online ? "bg-green-600 hover:bg-green-700" : ""
+                        isOnline ? "bg-green-600 hover:bg-green-700" : ""
                       }
                     >
-                      {agv.is_online ? "ONLINE" : "OFFLINE"}
+                      {isOnline ? "ONLINE" : "OFFLINE"}
                     </Badge>
                   </div>
                   <CardDescription className="flex items-center justify-between">
                     <span>{agv.manufacturer}</span>
-                    <span className="text-xs">Seen: {lastSeenText}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {isOnline ? (
+                        <span className="flex items-center text-green-600 dark:text-green-500">
+                          <span className="mr-1 relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                          </span>
+                          Live
+                        </span>
+                      ) : (
+                        `Seen: ${lastSeenText}`
+                      )}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
