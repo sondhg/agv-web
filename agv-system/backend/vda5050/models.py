@@ -41,6 +41,42 @@ class AGV(models.Model):
     def __str__(self):
         return f"{self.manufacturer} - {self.serial_number}"
 
+    def get_latest_state(self):
+        """Return the most recent AGVState, using prefetched data when available."""
+        prefetched_states = getattr(self, "prefetched_states", None)
+        if prefetched_states is not None:
+            return prefetched_states[0] if prefetched_states else None
+
+        return self.states.order_by("-timestamp").first()
+
+    def get_battery_level(self):
+        """Return the latest battery charge value for the AGV."""
+        latest_state = self.get_latest_state()
+        if not latest_state:
+            return None
+
+        battery_state = latest_state.battery_state or {}
+        battery_value = battery_state.get("batteryCharge")
+        if battery_value is None:
+            battery_value = battery_state.get("charge")
+
+        return battery_value
+
+    def get_operational_state(self):
+        """Return MOVING, IDLE, or CHARGING from the latest state."""
+        latest_state = self.get_latest_state()
+        if not latest_state:
+            return "IDLE"
+
+        battery_state = latest_state.battery_state or {}
+        if battery_state.get("charging") is True:
+            return "CHARGING"
+
+        if latest_state.driving:
+            return "MOVING"
+
+        return "IDLE"
+
 
 # ============================================
 # ORDER MANAGEMENT 
@@ -137,6 +173,136 @@ class AGVState(models.Model):
 
     def __str__(self):
         return f"State {self.agv} @ {self.timestamp}"
+
+
+# ============================================
+# DEADLOCK MONITORING
+# ============================================
+class DeadlockEvent(models.Model):
+    """Persisted deadlock/stuck monitor events emitted by the server."""
+
+    class Status(models.TextChoices):
+        POTENTIAL = "POTENTIAL", _("Potential")
+        RESOLVED = "RESOLVED", _("Resolved")
+        IGNORED = "IGNORED", _("Ignored")
+
+    event_id = models.CharField(max_length=100, unique=True)
+    agv = models.ForeignKey(AGV, on_delete=models.CASCADE, related_name="deadlock_events")
+    order_id = models.CharField(max_length=100, blank=True, null=True)
+    node_id = models.CharField(max_length=100, blank=True, null=True)
+    sequence_id = models.IntegerField(default=0)
+    position = models.JSONField(default=dict)
+    agv_set = models.JSONField(default=list)
+    conflicted_resources = models.JSONField(default=list)
+    stuck_duration_s = models.FloatField(default=0.0)
+    details = models.JSONField(default=dict)
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.POTENTIAL,
+    )
+    detected_at = models.DateTimeField(auto_now_add=True)
+    last_seen_at = models.DateTimeField(default=None, null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-detected_at"]
+        indexes = [
+            models.Index(fields=["agv", "status"]),
+            models.Index(fields=["status", "detected_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.event_id} [{self.status}] agv={self.agv.serial_number} "
+            f"order={self.order_id}"
+        )
+
+
+class NodeReservation(models.Model):
+    """Time-window reservation for a graph node by an AGV order."""
+
+    class Status(models.TextChoices):
+        RESERVED = "RESERVED", _("Reserved")
+        RELEASED = "RELEASED", _("Released")
+        CANCELLED = "CANCELLED", _("Cancelled")
+        EXPIRED = "EXPIRED", _("Expired")
+
+    node_id = models.CharField(max_length=100)
+    agv = models.ForeignKey(AGV, on_delete=models.CASCADE, related_name="node_reservations")
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="node_reservations",
+        null=True,
+        blank=True,
+    )
+    t_start = models.DateTimeField()
+    t_end = models.DateTimeField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RESERVED,
+    )
+    details = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["t_start"]
+        indexes = [
+            models.Index(fields=["node_id", "status", "t_start", "t_end"]),
+            models.Index(fields=["agv", "status", "t_start"]),
+            models.Index(fields=["order", "status"]),
+        ]
+
+    def __str__(self):
+        return f"node={self.node_id} agv={self.agv.serial_number} [{self.status}]"
+
+
+class EdgeReservation(models.Model):
+    """Time-window reservation for a graph edge by an AGV order."""
+
+    class Status(models.TextChoices):
+        RESERVED = "RESERVED", _("Reserved")
+        RELEASED = "RELEASED", _("Released")
+        CANCELLED = "CANCELLED", _("Cancelled")
+        EXPIRED = "EXPIRED", _("Expired")
+
+    edge_id = models.CharField(max_length=200)
+    start_node_id = models.CharField(max_length=100)
+    end_node_id = models.CharField(max_length=100)
+    agv = models.ForeignKey(AGV, on_delete=models.CASCADE, related_name="edge_reservations")
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.CASCADE,
+        related_name="edge_reservations",
+        null=True,
+        blank=True,
+    )
+    t_start = models.DateTimeField()
+    t_end = models.DateTimeField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.RESERVED,
+    )
+    details = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["t_start"]
+        indexes = [
+            models.Index(fields=["edge_id", "status", "t_start", "t_end"]),
+            models.Index(fields=["start_node_id", "end_node_id", "status", "t_start"]),
+            models.Index(fields=["agv", "status", "t_start"]),
+            models.Index(fields=["order", "status"]),
+        ]
+
+    def __str__(self):
+        return f"edge={self.edge_id} agv={self.agv.serial_number} [{self.status}]"
     
 # ============================================
 # INSTANT ACTIONS 

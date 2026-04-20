@@ -1,11 +1,49 @@
 import uuid
+import time
 from django.utils import timezone
 from vda5050.models import AGV, AGVState, Order
 from vda5050.graph_engine import GraphEngine
+from vda5050.modules.reservation import ReservationService
 
 class Scheduler:
     def __init__(self):
         self.graph_engine = GraphEngine()
+        self.reservation_service = ReservationService()
+
+    @staticmethod
+    def _merge_legs(nodes_leg1, edges_leg1, nodes_leg2, edges_leg2):
+        all_nodes = nodes_leg1 + nodes_leg2[1:]
+        all_edges = edges_leg1 + edges_leg2
+        return all_nodes, all_edges
+
+    def _compute_two_leg_path(
+        self,
+        start_node_id,
+        pickup_node_id,
+        delivery_node_id,
+        banned_nodes=None,
+        banned_edges=None,
+    ):
+        nodes_leg1, edges_leg1 = self.graph_engine.get_path(
+            start_node_id,
+            pickup_node_id,
+            banned_nodes=banned_nodes,
+            banned_edges=banned_edges,
+        )
+        if not nodes_leg1:
+            return None, None, f"Path not found from {start_node_id} to {pickup_node_id}"
+
+        nodes_leg2, edges_leg2 = self.graph_engine.get_path(
+            pickup_node_id,
+            delivery_node_id,
+            banned_nodes=banned_nodes,
+            banned_edges=banned_edges,
+        )
+        if not nodes_leg2:
+            return None, None, f"Path not found from {pickup_node_id} to {delivery_node_id}"
+
+        all_nodes, all_edges = self._merge_legs(nodes_leg1, edges_leg1, nodes_leg2, edges_leg2)
+        return all_nodes, all_edges, None
 
     def create_transport_order(self, serial_number, pickup_node_id, delivery_node_id):
         """
@@ -57,25 +95,65 @@ class Scheduler:
             initial_status = 'CREATED' 
 
         # 3. Calculate path with 2 legs: current -> pickup -> delivery
-        # Leg 1: current position -> pickup node
-        nodes_leg1, edges_leg1 = self.graph_engine.get_path(start_node_id, pickup_node_id)
-        if not nodes_leg1:
-            return {"success": False, "error": f"Path not found from {start_node_id} to {pickup_node_id}"}
-        
-        # Leg 2: pickup node -> delivery node
-        nodes_leg2, edges_leg2 = self.graph_engine.get_path(pickup_node_id, delivery_node_id)
-        if not nodes_leg2:
-            return {"success": False, "error": f"Path not found from {pickup_node_id} to {delivery_node_id}"}
-        
-        # Merge paths (remove duplicate pickup node)
-        all_nodes = nodes_leg1 + nodes_leg2[1:]  # Skip first node of leg2 (duplicate)
-        all_edges = edges_leg1 + edges_leg2
+        all_nodes, all_edges, path_error = self._compute_two_leg_path(
+            start_node_id=start_node_id,
+            pickup_node_id=pickup_node_id,
+            delivery_node_id=delivery_node_id,
+        )
+        if path_error:
+            return {"success": False, "error": path_error}
+
+        # Phase 2: reservation check before creating the order.
+        self.reservation_service.expire_old_reservations()
+        conflict_result = self.reservation_service.detect_conflicts(
+            agv=agv,
+            nodes=all_nodes,
+            edges=all_edges,
+        )
+
+        used_replan = False
+        used_horizon_release = False
+        release_cut_sequence = None
+        final_conflict_result = conflict_result
+
+        if conflict_result.has_conflict:
+            replanned_nodes, replanned_edges, path_error = self._compute_two_leg_path(
+                start_node_id=start_node_id,
+                pickup_node_id=pickup_node_id,
+                delivery_node_id=delivery_node_id,
+                banned_nodes=conflict_result.node_ids,
+                banned_edges=conflict_result.edge_ids,
+            )
+            if path_error:
+                used_horizon_release = True
+                all_nodes, all_edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
+                    nodes=all_nodes,
+                    edges=all_edges,
+                    conflict_node_ids=conflict_result.node_ids,
+                    conflict_edge_ids=conflict_result.edge_ids,
+                )
+            else:
+                all_nodes, all_edges = replanned_nodes, replanned_edges
+                used_replan = True
+                final_conflict_result = self.reservation_service.detect_conflicts(
+                    agv=agv,
+                    nodes=all_nodes,
+                    edges=all_edges,
+                )
+                if final_conflict_result.has_conflict:
+                    used_horizon_release = True
+                    all_nodes, all_edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
+                        nodes=all_nodes,
+                        edges=all_edges,
+                        conflict_node_ids=final_conflict_result.node_ids,
+                        conflict_edge_ids=final_conflict_result.edge_ids,
+                    )
 
         # 4. Create new Order in Database
         # (Signal post_save will automatically send MQTT)
         new_order_id = f"ORD_{uuid.uuid4().hex[:8].upper()}"
-        
-        order = Order.objects.create(
+
+        new_order = Order.objects.create(
             header_id=0,
             timestamp=timezone.now(),
             order_id=new_order_id,
@@ -86,9 +164,10 @@ class Scheduler:
             nodes=all_nodes,  # Combined path: current -> pickup -> delivery
             edges=all_edges   # Combined edges
         )
+        self.reservation_service.persist_reservations(new_order)
 
         msg = "Order sent to AGV" if initial_status == 'CREATED' else f"Order added to Queue (Start from {start_node_id})"
-        
+
         return {
             "success": True, 
             "order_id": new_order_id, 
@@ -96,5 +175,81 @@ class Scheduler:
             "message": msg,
             "pickup_node": pickup_node_id,
             "delivery_node": delivery_node_id,
-            "path": [n['nodeId'] for n in all_nodes]
+            "path": [n['nodeId'] for n in all_nodes],
+            "reservation_conflict_detected": conflict_result.has_conflict,
+            "reservation_replan_used": used_replan,
+            "reservation_horizon_release_used": used_horizon_release,
+            "release_cut_sequence": release_cut_sequence,
+        }
+
+    def create_charging_order(
+        self, serial_number: str, start_node_id: str, charging_node_id: str
+    ):
+        """Create an auto-charging order and append a VDA5050 startCharging action.
+
+        This method finds a path from the AGV current node to a charging node,
+        injects a startCharging action into the final node, stores the order,
+        and returns a structured result.
+        """
+        # 1. Get AGV by serial number.
+        try:
+            agv = AGV.objects.get(serial_number=serial_number)
+        except AGV.DoesNotExist:
+            return {"success": False, "error": "AGV does not exist"}
+
+        # 2. Calculate path to charging station.
+        nodes, edges = self.graph_engine.get_path(start_node_id, charging_node_id)
+        if not nodes:
+            return {
+                "success": False,
+                "error": f"Path not found from {start_node_id} to {charging_node_id}",
+            }
+
+        self.reservation_service.expire_old_reservations()
+        conflict_result = self.reservation_service.detect_conflicts(agv=agv, nodes=nodes, edges=edges)
+        used_horizon_release = False
+        release_cut_sequence = None
+        if conflict_result.has_conflict:
+            nodes, edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
+                nodes=nodes,
+                edges=edges,
+                conflict_node_ids=conflict_result.node_ids,
+                conflict_edge_ids=conflict_result.edge_ids,
+            )
+            used_horizon_release = True
+
+        # 3. Inject VDA 5050 startCharging action to the final node.
+        final_node = nodes[-1]
+        final_node.setdefault("actions", []).append(
+            {
+                "actionType": "startCharging",
+                "actionId": f"charge_{int(time.time())}",
+                "blockingType": "HARD",
+                "actionParameters": [],
+            }
+        )
+
+        # 4. Persist charging order in DB.
+        new_order_id = f"ORD_{uuid.uuid4().hex[:8].upper()}"
+        new_order = Order.objects.create(
+            header_id=0,
+            timestamp=timezone.now(),
+            order_id=new_order_id,
+            order_update_id=0,
+            zone_set_id="zone_1",
+            agv=agv,
+            status="CREATED",
+            nodes=nodes,
+            edges=edges,
+        )
+        self.reservation_service.persist_reservations(new_order)
+
+        # 5. Return structured result.
+        return {
+            "success": True,
+            "order_id": new_order_id,
+            "message": "Charging order created successfully",
+            "reservation_conflict_detected": conflict_result.has_conflict,
+            "reservation_horizon_release_used": used_horizon_release,
+            "release_cut_sequence": release_cut_sequence,
         }

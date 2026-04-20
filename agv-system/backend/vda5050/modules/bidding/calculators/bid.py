@@ -6,12 +6,15 @@ Responsible for marginal-cost estimation, bid scoring, and constraints.
 import logging
 from vda5050.models import AGVState, Order
 from vda5050.graph_engine import GraphEngine
+from vda5050.modules.reservation import ReservationService
 from .transport import TransportCalculator
 from .baseline import BaselineCalculator
 from .greedy_bid import GreedyBidStrategy
 from .ssi_marginal_bid import SsiMarginalBidStrategy
 from ...constant import (
-    DEFAULT_LOAD_KG
+    DEFAULT_LOAD_KG,
+    WAIT_CONFLICT_PENALTY,
+    UNREACHABLE_ROUTE_PENALTY,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,10 +51,13 @@ class BidCalculator:
             self.graph_engine, 
             self.transport_calculator
         )
+        self.reservation_service = ReservationService()
         self.greedy_strategy = GreedyBidStrategy(self)
         self.ssi_strategy = SsiMarginalBidStrategy(self)
         
         logger.debug("BidCalculator initialized")
+
+    CHARGING_RELEASE_THRESHOLD = 80.0
 
     @staticmethod
     def _build_greedy_invalid_result(battery, start_node):
@@ -85,18 +91,25 @@ class BidCalculator:
             return None
         
         current_node = last_state.last_node_id
-        current_battery = last_state.battery_state.get('batteryCharge', 0)
+        battery_state = last_state.battery_state or {}
+
+        current_battery = battery_state.get('batteryCharge')
+        if current_battery is None:
+            current_battery = battery_state.get('charge', 0)
+
+        is_charging = bool(battery_state.get('charging', False))
         
         logger.debug(f"AGV {agv.serial_number}: Node={current_node}, Battery={current_battery}%")
         
         return {
             'current_node': current_node,
             'battery': current_battery,
+            'is_charging': is_charging,
             'is_valid': True
         }
     
-    @staticmethod
-    def check_battery_constraint(battery_percent):
+    @classmethod
+    def check_battery_constraint(cls, battery_percent, is_charging=False):
         """
         Check battery constraints.
         
@@ -109,6 +122,17 @@ class BidCalculator:
                 'penalty_factor': float # Penalty multiplier (1.0 = none, >1.0 = penalized)
             }
         """
+        # AGV at charging station stays locked for task allocation until >80%.
+        if is_charging and battery_percent < cls.CHARGING_RELEASE_THRESHOLD:
+            logger.info(
+                f"AGV charging lock: {battery_percent}% < "
+                f"{cls.CHARGING_RELEASE_THRESHOLD}% - REJECTED"
+            )
+            return {
+                'is_acceptable': False,
+                'penalty_factor': float('inf')
+            }
+
         if battery_percent < 10.0:
             # Below 10%: hard reject.
             logger.warning(f"Critical battery: {battery_percent}% - REJECTED")
@@ -251,6 +275,39 @@ class BidCalculator:
         return self.ssi_strategy.calculate_marginal_cost(
             agv, pickup_node_id, delivery_node_id=delivery_node_id, load_kg=load_kg
         )
+
+    def estimate_conflict_penalty(self, agv, start_node, pickup_node_id, delivery_node_id=None):
+        """Estimate waiting/deadlock risk from active reservations for candidate route."""
+        leg1_nodes, leg1_edges = self.graph_engine.get_path(start_node, pickup_node_id)
+        if not leg1_nodes:
+            return {
+                "conflict_count": 999,
+                "conflict_penalty": UNREACHABLE_ROUTE_PENALTY,
+            }
+
+        all_nodes = leg1_nodes
+        all_edges = leg1_edges
+
+        if delivery_node_id:
+            leg2_nodes, leg2_edges = self.graph_engine.get_path(pickup_node_id, delivery_node_id)
+            if not leg2_nodes:
+                return {
+                    "conflict_count": 999,
+                    "conflict_penalty": UNREACHABLE_ROUTE_PENALTY,
+                }
+            all_nodes = leg1_nodes + leg2_nodes[1:]
+            all_edges = leg1_edges + leg2_edges
+
+        conflict_result = self.reservation_service.detect_conflicts(
+            agv=agv,
+            nodes=all_nodes,
+            edges=all_edges,
+        )
+        conflict_count = len(conflict_result.node_conflicts) + len(conflict_result.edge_conflicts)
+        return {
+            "conflict_count": conflict_count,
+            "conflict_penalty": conflict_count * WAIT_CONFLICT_PENALTY,
+        }
     
     def calculate_bid_score(self, marginal_cost_result, epsilon=None):
         """

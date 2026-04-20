@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.db.models import Prefetch
 from .models import AGV, Order, AGVState, InstantAction, GraphEdge, GraphNode
 
 
@@ -11,10 +12,34 @@ class AGVAdmin(admin.ModelAdmin):
         "is_online",
         "last_seen",
         "current_map_id",
+        "state_display",
+        "battery_level_display",
     )
     list_filter = ("manufacturer", "is_online")  # Create filters on the right
     search_fields = ("serial_number", "manufacturer")  # Search bar
     readonly_fields = ("last_seen",)  # Prevent manual editing of the timestamp
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.prefetch_related(
+            Prefetch(
+                "states",
+                queryset=AGVState.objects.order_by("-timestamp"),
+                to_attr="prefetched_states",
+            )
+        )
+
+    @admin.display(description="Battery %")
+    def battery_level_display(self, obj):
+        battery_value = obj.get_battery_level()
+        if battery_value is None:
+            return "N/A"
+
+        return f"{battery_value}%"
+
+    @admin.display(description="State")
+    def state_display(self, obj):
+        return obj.get_operational_state()
 
 
 # 2. Order Admin Configuration

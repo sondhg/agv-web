@@ -21,7 +21,11 @@ class GreedyBidStrategy:
             return None
 
         battery = state['battery']
-        if battery < 10.0:
+        battery_check = self.calculator.check_battery_constraint(
+            battery,
+            is_charging=state.get('is_charging', False),
+        )
+        if not battery_check['is_acceptable']:
             logger.info(f"AGV {agv.serial_number}: Greedy reject (battery={battery}%)")
             return self.calculator._build_greedy_invalid_result(battery, state['current_node'])
 

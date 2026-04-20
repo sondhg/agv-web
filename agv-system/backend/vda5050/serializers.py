@@ -3,9 +3,19 @@ from .models import AGV, Order, AGVState, GraphNode, GraphEdge
 
 
 class AGVSerializer(serializers.ModelSerializer):
+    battery_level = serializers.SerializerMethodField()
+    state = serializers.SerializerMethodField()
+
     class Meta:
         model = AGV
         fields = '__all__'
+        read_only_fields = ('battery_level', 'state')
+
+    def get_battery_level(self, obj):
+        return obj.get_battery_level()
+
+    def get_state(self, obj):
+        return obj.get_operational_state()
 
 class AGVStateSerializer(serializers.ModelSerializer):
     class Meta:

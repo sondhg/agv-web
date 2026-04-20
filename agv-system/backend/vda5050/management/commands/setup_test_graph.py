@@ -27,16 +27,27 @@ class Command(BaseCommand):
             {"node_id": "Charge_01", "x": 0, "y": 0, "type": GraphNode.NodeType.CHARGING},
             {"node_id": "Charge_02", "x": 0, "y": 8, "type": GraphNode.NodeType.CHARGING},
             {"node_id": "Depot_Gate", "x": 8, "y": 4, "type": GraphNode.NodeType.DEFAULT}, # Cổng bãi sạc
+            {"node_id": "Depot_Buffer", "x": 16, "y": 10, "type": GraphNode.NodeType.DEFAULT},
 
             # 2. HÀNH LANG CHÍNH (Main Hall - Dài và thoáng)
             {"node_id": "Main_S", "x": 8, "y": 25, "type": GraphNode.NodeType.DEFAULT}, # South
             {"node_id": "Main_C", "x": 8, "y": 55, "type": GraphNode.NodeType.DEFAULT}, # Center
             {"node_id": "Main_N", "x": 8, "y": 85, "type": GraphNode.NodeType.DEFAULT}, # North
 
+            # 2b. HÀNH LANG BÊN TÂY (Bypass lane, giảm tắc tại Main)
+            {"node_id": "West_S", "x": -8, "y": 25, "type": GraphNode.NodeType.DEFAULT},
+            {"node_id": "West_C", "x": -8, "y": 55, "type": GraphNode.NodeType.DEFAULT},
+            {"node_id": "West_N", "x": -8, "y": 85, "type": GraphNode.NodeType.DEFAULT},
+
             # 3. HÀNH LANG PHỤ (Aisles - Hẹp hơn)
             {"node_id": "Aisle_S", "x": 28, "y": 25, "type": GraphNode.NodeType.DEFAULT},
             {"node_id": "Aisle_C", "x": 28, "y": 55, "type": GraphNode.NodeType.DEFAULT},
             {"node_id": "Aisle_N", "x": 28, "y": 85, "type": GraphNode.NodeType.DEFAULT},
+
+            # 3b. HÀNH LANG PHỤ THỨ 2 (Fast aisle cho tuyến xa)
+            {"node_id": "Aisle2_S", "x": 36, "y": 25, "type": GraphNode.NodeType.DEFAULT},
+            {"node_id": "Aisle2_C", "x": 36, "y": 55, "type": GraphNode.NodeType.DEFAULT},
+            {"node_id": "Aisle2_N", "x": 36, "y": 85, "type": GraphNode.NodeType.DEFAULT},
 
             # 4. KHU VỰC LẤY HÀNG (Warehouse - Pickup)
             {"node_id": "WH_Pick_1", "x": 45, "y": 25, "type": GraphNode.NodeType.PICKUP},
@@ -78,31 +89,58 @@ class Command(BaseCommand):
             # Đi từ Trạm sạc ra Cổng (Tốc độ chậm: 1.0 m/s)
             ("Charge_01", "Depot_Gate", 1.0),
             ("Charge_02", "Depot_Gate", 1.0),
+            ("Charge_01", "Depot_Buffer", 1.2),
+            ("Charge_02", "Depot_Buffer", 1.2),
+            ("Depot_Gate", "Depot_Buffer", 1.5),
             
             # Nối Cổng bãi sạc với Hành lang chính (Tốc độ TB: 1.5 m/s)
             ("Depot_Gate", "Main_S", 1.5),
+            ("Depot_Buffer", "Main_S", 1.8),
+            ("Depot_Buffer", "Aisle_S", 1.8),
+            ("Depot_Buffer", "West_S", 1.5),
 
             # Dọc Hành lang chính (Khoảng cách cực dài, chạy max tốc: 2.0 m/s)
             ("Main_S", "Main_C", 2.0),
             ("Main_C", "Main_N", 2.0),
 
+            # Dọc hành lang bên tây (bypass)
+            ("West_S", "West_C", 1.8),
+            ("West_C", "West_N", 1.8),
+
             # Dọc Hành lang phụ (Chạy chậm hơn hành lang chính: 1.5 m/s)
             ("Aisle_S", "Aisle_C", 1.5),
             ("Aisle_C", "Aisle_N", 1.5),
+
+            # Dọc hành lang phụ thứ 2
+            ("Aisle2_S", "Aisle2_C", 1.8),
+            ("Aisle2_C", "Aisle2_N", 1.8),
 
             # Đường cắt ngang nối Hành lang chính và phụ (1.5 m/s)
             ("Main_S", "Aisle_S", 1.5),
             ("Main_C", "Aisle_C", 1.5),
             ("Main_N", "Aisle_N", 1.5),
+            ("Main_S", "West_S", 1.5),
+            ("Main_C", "West_C", 1.5),
+            ("Main_N", "West_N", 1.5),
+            ("Aisle_S", "Aisle2_S", 1.6),
+            ("Aisle_C", "Aisle2_C", 1.6),
+            ("Aisle_N", "Aisle2_N", 1.6),
+            ("West_C", "Aisle_C", 1.7),
+            ("West_N", "Aisle_N", 1.7),
 
             # Rẽ từ Hành lang phụ vào Kho bốc hàng (Vào kho chạy chậm: 1.0 m/s)
             ("Aisle_S", "WH_Pick_1", 1.0),
             ("Aisle_C", "WH_Pick_2", 1.0),
             ("Aisle_N", "WH_Pick_3", 1.0),
+            ("Aisle2_S", "WH_Pick_1", 1.2),
+            ("Aisle2_C", "WH_Pick_2", 1.2),
+            ("Aisle2_N", "WH_Pick_3", 1.2),
 
             # Rẽ từ Hành lang chính vào Dây chuyền trả hàng (Chạy chậm: 1.0 m/s)
             ("Main_C", "Assy_Drop_1", 1.0),
             ("Main_N", "Assy_Drop_2", 1.0),
+            ("West_C", "Assy_Drop_1", 1.2),
+            ("West_N", "Assy_Drop_2", 1.2),
         ]
         
         # TẠO EDGE HAI CHIỀU (BIDIRECTIONAL) TỰ TÍNH KHOẢNG CÁCH
@@ -138,16 +176,16 @@ class Command(BaseCommand):
             f'{"="*70}\n'
         ))
         
-        self.stdout.write('📊 Factory Map Topology:\n')
-        self.stdout.write(f'  {self.style.SUCCESS("[Assy_Drop_2]")} ---- [Main_N] ====== [Aisle_N] ---- {self.style.SUCCESS("[WH_Pick_3]")}')
-        self.stdout.write('                     ||              ||')
-        self.stdout.write(f'  {self.style.SUCCESS("[Assy_Drop_1]")} ---- [Main_C] ====== [Aisle_C] ---- {self.style.SUCCESS("[WH_Pick_2]")}')
-        self.stdout.write('                     ||              ||')
-        self.stdout.write(f'                  [Main_S] ====== [Aisle_S] ---- {self.style.SUCCESS("[WH_Pick_1]")}')
-        self.stdout.write('                     ||')
-        self.stdout.write('                [Depot_Gate]')
-        self.stdout.write('                 /        \\')
-        self.stdout.write(f'      {self.style.WARNING("[Charge_01]")}        {self.style.WARNING("[Charge_02]")}\n')
+        self.stdout.write('📊 Factory Map Topology (optimized multi-lane):\n')
+        self.stdout.write(f'  {self.style.SUCCESS("[Assy_Drop_2]")} - [West_N] = [Main_N] = [Aisle_N] = [Aisle2_N] - {self.style.SUCCESS("[WH_Pick_3]")}')
+        self.stdout.write('                     ||       ||         ||         ||')
+        self.stdout.write(f'  {self.style.SUCCESS("[Assy_Drop_1]")} - [West_C] = [Main_C] = [Aisle_C] = [Aisle2_C] - {self.style.SUCCESS("[WH_Pick_2]")}')
+        self.stdout.write('                     ||       ||         ||         ||')
+        self.stdout.write(f'                  [West_S] = [Main_S] = [Aisle_S] = [Aisle2_S] - {self.style.SUCCESS("[WH_Pick_1]")}')
+        self.stdout.write('                     ||         ||         ||')
+        self.stdout.write('                [Depot_Gate] = [Depot_Buffer]')
+        self.stdout.write('                 /          \\')
+        self.stdout.write(f'      {self.style.WARNING("[Charge_01]")}          {self.style.WARNING("[Charge_02]")}\n')
         
         self.stdout.write(f'📈 Map Stats: {GraphNode.objects.count()} Nodes, {GraphEdge.objects.count()} Edges.')
         self.stdout.write('   * [===] = High Speed (2.0 m/s)  |  [---] = Normal/Low Speed (1.0 - 1.5 m/s)')

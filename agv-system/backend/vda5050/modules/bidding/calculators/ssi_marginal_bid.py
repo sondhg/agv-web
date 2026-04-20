@@ -108,8 +108,12 @@ class SsiMarginalBidStrategy:
 
         current_node = state['current_node']
         battery = state['battery']
+        is_charging = state.get('is_charging', False)
 
-        battery_check = self.calculator.check_battery_constraint(battery)
+        battery_check = self.calculator.check_battery_constraint(
+            battery,
+            is_charging=is_charging,
+        )
         if not battery_check['is_acceptable']:
             return None
 
@@ -140,6 +144,13 @@ class SsiMarginalBidStrategy:
         if not trip_result:
             return None
 
+        conflict_info = self.calculator.estimate_conflict_penalty(
+            agv=agv,
+            start_node=start_node,
+            pickup_node_id=pickup_node_id,
+            delivery_node_id=delivery_node_id,
+        )
+
         energy_marginal = trip_result['energy_marginal']
         time_marginal = trip_result['time_marginal']
         baseline_result = trip_result['baseline_result']
@@ -154,6 +165,8 @@ class SsiMarginalBidStrategy:
             'queue_time_s': wait_time,
             'queue_energy_kj': queue_energy,
             'num_pending': num_pending,
+            'conflict_count': conflict_info['conflict_count'],
+            'conflict_penalty': conflict_info['conflict_penalty'],
             'is_valid': True
         }
 
@@ -169,6 +182,8 @@ class SsiMarginalBidStrategy:
         queue_energy = marginal_cost_result.get('queue_energy_kj', 0.0)
         time_marginal = marginal_cost_result.get('time_marginal', 0.0)
         energy_marginal = marginal_cost_result.get('energy_marginal', 0.0)
+        conflict_penalty = marginal_cost_result.get('conflict_penalty', 0.0)
+        conflict_count = marginal_cost_result.get('conflict_count', 0)
 
         eps = epsilon if epsilon is not None else EPSILON
         bid_minisum = (K_ENERGY * norm_energy) + (K_TIME * norm_time)
@@ -186,6 +201,7 @@ class SsiMarginalBidStrategy:
             K_ENERGY * (norm_energy + norm_queue_energy)
             + K_TIME * (norm_time + norm_queue_time)
         )
+        bid_minimax += conflict_penalty
 
         bid_final = (eps * bid_minisum) + ((1 - eps) * bid_minimax)
         bid_final *= battery_penalty
@@ -194,7 +210,8 @@ class SsiMarginalBidStrategy:
             f"Bid score: MiniSum={bid_minisum:.4f}, MiniMax={bid_minimax:.4f}, "
             f"Hybrid={bid_final:.4f} (ε={eps}, penalty={battery_penalty}, "
             f"queue_time={queue_time:.1f}s, norm_qT={norm_queue_time:.2f}, "
-            f"norm_qE={norm_queue_energy:.2f})"
+            f"norm_qE={norm_queue_energy:.2f}, conflicts={conflict_count}, "
+            f"conflict_penalty={conflict_penalty:.2f})"
         )
 
         return bid_final

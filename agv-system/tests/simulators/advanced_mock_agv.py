@@ -49,6 +49,7 @@ class AdvancedMockAGV:
     STATE_ROTATING = "ROTATING"
     STATE_WAITING = "WAITING_FOR_PERMISSION"
     STATE_EXECUTING_ACTION = "EXECUTING_ACTION"
+    STATE_CHARGING = "CHARGING"
     STATE_PAUSED = "PAUSED"
     STATE_ERROR = "ERROR"
 
@@ -79,6 +80,8 @@ class AdvancedMockAGV:
 
         # Battery
         self.battery: float = initial_battery
+        self.is_charging: bool = False
+        self.charge_rate_pct_per_s: float = 1.0
 
         # Operating state
         self.op_state: str = self.STATE_IDLE
@@ -168,6 +171,7 @@ class AdvancedMockAGV:
         )
 
         with self._lock:
+            self.is_charging = False
             self.order_id = order_id
             self.order_nodes = nodes
             self.order_edges = edges
@@ -365,6 +369,11 @@ class AdvancedMockAGV:
             elif action_type == "drop":
                 self.current_load = None
                 logger.info(f"[{self.serial_number}] Dropped load")
+            elif action_type == "startCharging":
+                self.is_charging = True
+                self.op_state = self.STATE_CHARGING
+                self.driving = False
+                logger.info(f"[{self.serial_number}] Started charging")
 
     def _complete_order(self):
         """Handle order completion."""
@@ -397,7 +406,7 @@ class AdvancedMockAGV:
         # Mark as done but keep order_id so the server can detect completion
         # (server needs orderId + driving=False + lastNodeId == final node)
         self.driving = False
-        self.op_state = self.STATE_IDLE
+        self.op_state = self.STATE_CHARGING if self.is_charging else self.STATE_IDLE
 
         # Publish one final state WITH the order_id still set
         # so the server sees orderId + lastNodeId + driving=False → COMPLETED
@@ -414,6 +423,14 @@ class AdvancedMockAGV:
 
     def _tick_idle(self, dt: float):
         """Apply idle energy drain when not moving."""
+        if self.is_charging:
+            self.battery = min(100.0, self.battery + self.charge_rate_pct_per_s * dt)
+            if self.battery >= 99.9:
+                self.is_charging = False
+                if self.op_state == self.STATE_CHARGING:
+                    self.op_state = self.STATE_IDLE
+            return
+
         if self.op_state in (self.STATE_IDLE, self.STATE_WAITING, self.STATE_PAUSED):
             e_idle = self.energy.calculate_idle_energy(dt)
             self.battery -= e_idle
@@ -442,7 +459,7 @@ class AdvancedMockAGV:
             "batteryState": {
                 "batteryCharge": round(self.battery, 2),
                 "batteryVoltage": 48.0,
-                "charging": False,
+                "charging": self.is_charging,
                 "reach": max(0, int(self.battery / self.energy.POWER_MOVING)),
             },
             "agvPosition": {
