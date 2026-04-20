@@ -62,7 +62,9 @@ class SimulationRunner:
         logger.info(f"\n{'=' * 60}")
         logger.info(f"  SCENARIO: {self.name}")
         logger.info(f"  {self.scenario['description']}")
-        logger.info(f"  Fleet: {len(self.fleet_config)} AGVs | Tasks: {len(self.tasks)}")
+        logger.info(
+            f"  Fleet: {len(self.fleet_config)} AGVs | Tasks: {len(self.tasks)}"
+        )
         if self.epsilon is not None:
             logger.info(f"  Epsilon (ε): {self.epsilon}")
         logger.info(f"{'=' * 60}\n")
@@ -116,13 +118,17 @@ class SimulationRunner:
                 if resp.status_code == 200:
                     registered = resp.json()
                     online = [
-                        a for a in registered
-                        if a.get("is_online") and a.get("serial_number") in self.fleet_config
+                        a
+                        for a in registered
+                        if a.get("is_online")
+                        and a.get("serial_number") in self.fleet_config
                     ]
                     if len(online) >= len(self.fleet_config):
                         logger.info(f"All {len(online)} AGVs registered and online")
                         return
-                    logger.info(f"  {len(online)}/{len(self.fleet_config)} AGVs online...")
+                    logger.info(
+                        f"  {len(online)}/{len(self.fleet_config)} AGVs online..."
+                    )
             except requests.RequestException as e:
                 logger.warning(f"Server not reachable: {e}")
             time.sleep(2)
@@ -175,7 +181,9 @@ class SimulationRunner:
                     data = resp.json()
                     winner = data.get("winner_agv", "?")
                     order_id = data.get("order_id", "?")
-                    logger.info(f"    -> Assigned to {winner} (Order: {order_id}, Bid: {bidding_time_ms}ms)")
+                    logger.info(
+                        f"    -> Assigned to {winner} (Order: {order_id}, Bid: {bidding_time_ms}ms)"
+                    )
 
                     self.metrics.record_task_assignment(
                         {
@@ -233,8 +241,7 @@ class SimulationRunner:
         elapsed = time.time() - start
         completed = len(self.metrics.order_records)
         logger.warning(
-            f"\nTimeout after {elapsed:.0f}s. "
-            f"Completed: {completed}/{expected_tasks}"
+            f"\nTimeout after {elapsed:.0f}s. Completed: {completed}/{expected_tasks}"
         )
 
     def _print_fleet_status(self, completed: int, total: int):
@@ -254,6 +261,7 @@ class SimulationRunner:
 
 # ==================== Main Entry Point ====================
 
+
 def main():
     parser = argparse.ArgumentParser(
         description="AGV Simulation Runner - VDA5050 Compliant"
@@ -261,22 +269,26 @@ def main():
     parser.add_argument(
         "--scenario",
         type=str,
-        default="basic",
+        default="continuous_shift",
         help=f"Scenario to run: {', '.join(list_scenarios())} or 'all'",
     )
+    parser.add_argument("--list", action="store_true", help="List available scenarios")
     parser.add_argument(
-        "--list", action="store_true", help="List available scenarios"
-    )
-    parser.add_argument(
-        "--agvs", type=int, default=0,
+        "--agvs",
+        type=int,
+        default=0,
         help="Override fleet size (only works with basic scenario)",
     )
     parser.add_argument(
-        "--api", type=str, default=None,
+        "--api",
+        type=str,
+        default=None,
         help="Override API base URL (e.g., http://localhost:8000/api)",
     )
     parser.add_argument(
-        "--epsilon", type=float, default=None,
+        "--epsilon",
+        type=float,
+        default=None,
         help="Hybrid objective parameter (0=MiniMax, 1=MiniSum). Sent per-request to server.",
     )
 
@@ -296,6 +308,7 @@ def main():
     # Override API URL
     if args.api:
         import config_sim
+
         config_sim.API_BASE_URL = args.api
 
     # Run scenarios

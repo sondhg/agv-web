@@ -11,18 +11,18 @@ class EnergyConfig:
     """Physical constants for AGV energy calculations."""
 
     # Kinematic parameters
-    VELOCITY: float = 1.0            # m/s  - Translational velocity
-    ROTATION_SPEED: float = 30.0     # deg/s - Rotation speed
+    VELOCITY: float = 10.0  # m/s  - Translational velocity
+    ROTATION_SPEED: float = 30.0  # deg/s - Rotation speed
 
     # Power consumption rates (battery % per second)
-    POWER_MOVING: float = 0.05       # %/s while translating
-    POWER_ROTATION: float = 0.03     # %/s while rotating
-    POWER_IDLE: float = 0.005        # %/s while idle/waiting
+    POWER_MOVING: float = 0.05  # %/s while translating
+    POWER_ROTATION: float = 0.03  # %/s while rotating
+    POWER_IDLE: float = 0.005  # %/s while idle/waiting
 
     # Battery thresholds
-    BATTERY_CRITICAL: float = 10.0   # % - Stop all operations
-    BATTERY_LOW: float = 30.0        # % - Restricted, penalty applied
-    BATTERY_LOW_PENALTY: float = 1.5 # Penalty coefficient for marginal cost
+    BATTERY_CRITICAL: float = 10.0  # % - Stop all operations
+    BATTERY_LOW: float = 30.0  # % - Restricted, penalty applied
+    BATTERY_LOW_PENALTY: float = 1.5  # Penalty coefficient for marginal cost
 
     def calculate_move_energy(self, distance_m: float) -> tuple[float, float]:
         """
