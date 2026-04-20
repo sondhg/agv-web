@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react"
 
 import {
-  BuiltInEdge,
+  type BuiltInEdge,
   useReactFlow,
   type Node,
   type PanelProps,
@@ -29,12 +29,10 @@ export interface NodeSearchProps extends Omit<PanelProps, "children"> {
 }
 
 export function NodeSearchInternal({
-  className,
   onSearch,
   onSelectNode,
   open,
   onOpenChange,
-  ...props
 }: NodeSearchProps) {
   const [searchResults, setSearchResults] = useState<Node[]>([])
   const [searchString, setSearchString] = useState<string>("")

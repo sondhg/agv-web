@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { OrderDetailsDialog } from "@/components/order-details-dialog"
 import { fetchOrders, fetchAgvs } from "@/lib/api"
-import type { Order, Agv } from "@/lib/api"
+import type { Order } from "@/lib/api";
+import type { Agv } from "@/types/agv"
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
