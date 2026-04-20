@@ -13,6 +13,7 @@ import SensorDataPage from "@/app/supervise/sensor-data/page"
 import RoutingPage from "@/app/simulate/routing/page"
 import CreateTaskPage from "@/app/tasks/create/page"
 import OrdersPage from "@/app/orders/page"
+import FleetDashboardPage from "@/app/fleet/page"
 
 const rootRoute = createRootRoute({
   component: Layout,
@@ -96,6 +97,12 @@ const ordersRoute = createRoute({
   component: OrdersPage,
 })
 
+const fleetRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/fleet",
+  component: FleetDashboardPage,
+})
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   dashboardRoute,
@@ -106,6 +113,7 @@ const routeTree = rootRoute.addChildren([
   registerAgvsRoute,
   createTaskRoute,
   ordersRoute,
+  fleetRoute,
 ])
 
 export const router = createRouter({ routeTree })

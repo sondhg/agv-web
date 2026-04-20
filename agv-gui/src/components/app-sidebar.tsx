@@ -25,6 +25,16 @@ import {
 const data = {
   navMain: [
     {
+      title: "Fleet",
+      url: "/fleet",
+      items: [
+        {
+          title: "Fleet Dashboard",
+          url: "/fleet",
+        },
+      ],
+    },
+    {
       title: "Tasks & Orders",
       url: "/tasks",
       items: [
