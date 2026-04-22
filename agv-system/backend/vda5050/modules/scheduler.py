@@ -65,6 +65,15 @@ class Scheduler:
             
             start_node_id = last_state.last_node_id
 
+            if agv.is_charging_locked():
+                return {
+                    "success": False,
+                    "error": (
+                        f"AGV {serial_number} is locked for charging and cannot accept "
+                        "a new transport order"
+                    ),
+                }
+
         except AGV.DoesNotExist:
             return {"success": False, "error": "AGV does not exist"}
 
@@ -77,6 +86,20 @@ class Scheduler:
         ).order_by('-created_at').first()
 
         if last_active_order:
+            try:
+                last_actions = (last_active_order.nodes or [])[-1].get("actions", [])
+            except (IndexError, AttributeError, TypeError):
+                return {"success": False, "error": "Malformed nodes data in previous order"}
+
+            if any(action.get("actionType") == "startCharging" for action in last_actions):
+                return {
+                    "success": False,
+                    "error": (
+                        f"AGV {serial_number} is already heading to or waiting at a "
+                        "charging station"
+                    ),
+                }
+
             # Chaining: Start from the last node of the current active order instead of current position
             try:
                 start_node_id = last_active_order.nodes[-1]['nodeId']

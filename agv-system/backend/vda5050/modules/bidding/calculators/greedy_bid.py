@@ -16,6 +16,15 @@ class GreedyBidStrategy:
 
     def calculate_bid(self, agv, pickup_node_id):
         """Calculate greedy bid using projected start node and pickup distance only."""
+        if self.calculator.is_agv_locked_for_charging(agv):
+            logger.info(
+                f"AGV {agv.serial_number}: Greedy reject (charging mission active or charging state)"
+            )
+            state = self.calculator.get_agv_current_state(agv)
+            battery = state["battery"] if state and state.get("is_valid") else 0.0
+            start_node = state["current_node"] if state and state.get("is_valid") else None
+            return self.calculator._build_greedy_invalid_result(battery, start_node)
+
         state = self.calculator.get_agv_current_state(agv)
         if not state or not state['is_valid']:
             return None

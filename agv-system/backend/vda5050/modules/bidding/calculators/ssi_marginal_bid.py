@@ -2,7 +2,13 @@
 
 import logging
 
-from ...constant import DEFAULT_LOAD_KG, K_ENERGY, K_TIME, EPSILON
+from ...constant import (
+    DEFAULT_LOAD_KG,
+    K_ENERGY,
+    K_TIME,
+    EPSILON,
+    PENDING_ORDER_SOFT_PENALTY,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +190,7 @@ class SsiMarginalBidStrategy:
         energy_marginal = marginal_cost_result.get('energy_marginal', 0.0)
         conflict_penalty = marginal_cost_result.get('conflict_penalty', 0.0)
         conflict_count = marginal_cost_result.get('conflict_count', 0)
+        num_pending = marginal_cost_result.get('num_pending', 0)
 
         eps = epsilon if epsilon is not None else EPSILON
         bid_minisum = (K_ENERGY * norm_energy) + (K_TIME * norm_time)
@@ -202,6 +209,8 @@ class SsiMarginalBidStrategy:
             + K_TIME * (norm_time + norm_queue_time)
         )
         bid_minimax += conflict_penalty
+        queue_depth_penalty = max(0, num_pending - 1) * PENDING_ORDER_SOFT_PENALTY
+        bid_minimax += queue_depth_penalty
 
         bid_final = (eps * bid_minisum) + ((1 - eps) * bid_minimax)
         bid_final *= battery_penalty
@@ -210,7 +219,8 @@ class SsiMarginalBidStrategy:
             f"Bid score: MiniSum={bid_minisum:.4f}, MiniMax={bid_minimax:.4f}, "
             f"Hybrid={bid_final:.4f} (ε={eps}, penalty={battery_penalty}, "
             f"queue_time={queue_time:.1f}s, norm_qT={norm_queue_time:.2f}, "
-            f"norm_qE={norm_queue_energy:.2f}, conflicts={conflict_count}, "
+            f"norm_qE={norm_queue_energy:.2f}, queue_depth_penalty={queue_depth_penalty:.2f}, "
+            f"pending={num_pending}, conflicts={conflict_count}, "
             f"conflict_penalty={conflict_penalty:.2f})"
         )
 

@@ -77,6 +77,35 @@ class AGV(models.Model):
 
         return "IDLE"
 
+    def has_pending_charging_order(self):
+        """Return True when the AGV has an in-flight charging order."""
+        pending_statuses = [
+            Order.OrderStatus.CREATED,
+            Order.OrderStatus.SENT,
+            Order.OrderStatus.ACTIVE,
+            Order.OrderStatus.QUEUED,
+        ]
+
+        for order in self.orders.filter(status__in=pending_statuses).order_by("created_at"):
+            nodes = order.nodes or []
+            if not nodes:
+                continue
+
+            last_node = nodes[-1]
+            actions = last_node.get("actions", [])
+            for action in actions:
+                if action.get("actionType") == "startCharging":
+                    return True
+
+        return False
+
+    def is_charging_locked(self):
+        """Return True when the AGV should be excluded from new transport bids."""
+        if self.get_operational_state() == "CHARGING":
+            return True
+
+        return self.has_pending_charging_order()
+
 
 # ============================================
 # ORDER MANAGEMENT 

@@ -225,14 +225,16 @@ class BidCalculator:
                 if chain_node == end_node:
                     continue
 
-                distance, turns = self.graph_engine.get_path_info(chain_node, end_node)
+                # Estimate remaining queue workload by following the pending order route
+                # rather than a direct shortest-path shortcut to the final node.
+                route_energy, route_time = self._estimate_order_route_metrics(
+                    order=order,
+                    from_node=chain_node,
+                    load_kg=load_kg,
+                )
 
-                if distance != float('inf') and distance > 0:
-                    energy, travel_time = self.transport_calculator.calculate_metrics(
-                        distance, load_kg, turns
-                    )
-                    total_wait_time += travel_time
-                    total_queue_energy += energy
+                total_wait_time += route_time
+                total_queue_energy += route_energy
 
                 chain_node = end_node
 
@@ -252,6 +254,55 @@ class BidCalculator:
             'queue_energy_kj': total_queue_energy,
             'num_pending': pending_count,
         }
+
+    def _estimate_order_route_metrics(self, order, from_node, load_kg):
+        """Estimate route metrics from current chain node through order nodes."""
+        nodes = order.nodes or []
+        if not nodes:
+            return 0.0, 0.0
+
+        node_ids = [node.get('nodeId') for node in nodes if node.get('nodeId')]
+        if not node_ids:
+            return 0.0, 0.0
+
+        total_energy = 0.0
+        total_time = 0.0
+
+        # Align chain start with route start.
+        if from_node != node_ids[0]:
+            lead_distance, lead_turns = self.graph_engine.get_path_info(from_node, node_ids[0])
+            if lead_distance != float('inf') and lead_distance > 0:
+                lead_energy, lead_time = self.transport_calculator.calculate_metrics(
+                    lead_distance,
+                    load_kg,
+                    lead_turns,
+                )
+                total_energy += lead_energy
+                total_time += lead_time
+
+        start_idx = 0
+        if from_node in node_ids:
+            start_idx = node_ids.index(from_node)
+
+        for idx in range(start_idx, len(node_ids) - 1):
+            start = node_ids[idx]
+            end = node_ids[idx + 1]
+            if start == end:
+                continue
+
+            distance, turns = self.graph_engine.get_path_info(start, end)
+            if distance == float('inf') or distance <= 0:
+                continue
+
+            energy, travel_time = self.transport_calculator.calculate_metrics(
+                distance,
+                load_kg,
+                turns,
+            )
+            total_energy += energy
+            total_time += travel_time
+
+        return total_energy, total_time
     
     def calculate_marginal_cost(self, agv, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG):
         """
@@ -275,6 +326,14 @@ class BidCalculator:
         return self.ssi_strategy.calculate_marginal_cost(
             agv, pickup_node_id, delivery_node_id=delivery_node_id, load_kg=load_kg
         )
+
+    def is_agv_locked_for_charging(self, agv):
+        """Return True when the AGV must not receive new transport tasks."""
+        try:
+            return agv.is_charging_locked()
+        except Exception as exc:
+            logger.warning(f"AGV {agv.serial_number}: charging lock check failed: {exc}")
+            return False
 
     def estimate_conflict_penalty(self, agv, start_node, pickup_node_id, delivery_node_id=None):
         """Estimate waiting/deadlock risk from active reservations for candidate route."""
@@ -346,6 +405,12 @@ class BidCalculator:
                 'details': dict
             } or None if bidding is not possible
         """
+        if self.is_agv_locked_for_charging(agv):
+            logger.info(
+                f"AGV {agv.serial_number}: Cannot bid (charging mission active or charging state)"
+            )
+            return None
+
         return self.ssi_strategy.calculate_full_bid(
             agv,
             pickup_node_id,

@@ -24,6 +24,10 @@ EPSILON = 0.5
 WAIT_CONFLICT_PENALTY = 1.25
 UNREACHABLE_ROUTE_PENALTY = 10.0
 
+# Queue depth soft penalty (normalized-score units) to discourage deep chaining
+# on the same AGV when pending orders start to accumulate.
+PENDING_ORDER_SOFT_PENALTY = 0.8
+
 # Auction strategy feature flag
 # 'SSI_MARGINAL': Existing SSI marginal-cost algorithm (default)
 # 'GREEDY_DISTANCE': Baseline nearest-neighbor by distance to pickup
