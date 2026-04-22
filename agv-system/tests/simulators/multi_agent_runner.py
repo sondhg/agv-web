@@ -100,6 +100,7 @@ class SimulationRunner:
                 initial_node=config["node"],
                 initial_battery=config["battery"],
                 on_order_complete=self.metrics.record_order_complete,
+                on_state_change=self.metrics.record_agv_state,
             )
             agv.start()
             self.agvs.append(agv)

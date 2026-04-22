@@ -61,6 +61,10 @@ class MetricsCollector:
         self.deadlock_count: int = 0
         self._deadlock_check_states: dict[str, dict] = {}  # agv -> {node, timestamp}
 
+        # Permission-wait tracking (AGV waiting for released horizon segments)
+        self._permission_wait_states: dict[tuple[str, str], dict] = {}
+        self.agv_total_permission_wait_time: dict[str, float] = defaultdict(float)
+
         # Fleet-level
         self._simulation_start: float = 0.0
         self._simulation_end: float = 0.0
@@ -96,10 +100,17 @@ class MetricsCollector:
         agv = metrics["agv"]
         order_id = metrics.get("order_id", "")
 
+        permission_wait_time = self._finalize_permission_wait(agv, order_id)
+        if permission_wait_time is not None:
+            metrics = dict(metrics)
+            metrics["wait_time_s"] = max(metrics.get("wait_time_s", 0), permission_wait_time)
+            metrics["permission_wait_time_s"] = round(permission_wait_time, 2)
+
         with self._lock:
             is_transport = order_id in self.transport_order_ids
             record = dict(metrics)
             record["order_type"] = "transport" if is_transport else "auxiliary"
+            record.setdefault("permission_wait_time_s", round(metrics.get("wait_time_s", 0), 2))
             self.order_records.append(record)
 
             if is_transport:
@@ -108,6 +119,7 @@ class MetricsCollector:
                 self.agv_total_energy[agv] += metrics.get("energy_consumed_pct", 0)
                 self.agv_total_distance[agv] += metrics.get("distance_m", 0)
                 self.agv_total_wait_time[agv] += metrics.get("wait_time_s", 0)
+                self.agv_total_permission_wait_time[agv] += metrics.get("permission_wait_time_s", metrics.get("wait_time_s", 0))
                 self._last_order_completed = time.time()
             else:
                 self.aux_order_records.append(record)
@@ -144,6 +156,64 @@ class MetricsCollector:
                 {"timestamp": timestamp, "battery": battery}
             )
 
+    def record_agv_state(self, serial_or_state, state: dict | None = None):
+        """Track permission waiting time from live AGV state messages."""
+        if state is None:
+            state = serial_or_state
+            agv = state.get("serialNumber")
+        else:
+            agv = serial_or_state
+
+        order_id = state.get("orderId") or ""
+        if not agv or not order_id:
+            return
+
+        now = time.time()
+        driving = bool(state.get("driving", False))
+        battery_state = state.get("batteryState", {}) or {}
+        is_charging = bool(battery_state.get("charging", False))
+        is_waiting = (not driving) and (not is_charging)
+
+        key = (agv, order_id)
+
+        with self._lock:
+            tracker = self._permission_wait_states.get(key)
+            if is_waiting:
+                if not tracker:
+                    self._permission_wait_states[key] = {
+                        "waiting_since": now,
+                        "total_wait": 0.0,
+                        "active": True,
+                    }
+                elif not tracker.get("active", False):
+                    tracker["waiting_since"] = now
+                    tracker["active"] = True
+            elif tracker:
+                if tracker.get("active", False) and tracker.get("waiting_since") is not None:
+                    tracker["total_wait"] += max(0.0, now - tracker["waiting_since"])
+                tracker["waiting_since"] = None
+                tracker["active"] = False
+
+    def _finalize_permission_wait(self, agv: str, order_id: str) -> float | None:
+        """Close any open permission-wait interval for an order and return total wait."""
+        if not agv or not order_id:
+            return None
+
+        key = (agv, order_id)
+        now = time.time()
+
+        with self._lock:
+            tracker = self._permission_wait_states.pop(key, None)
+            if not tracker:
+                return None
+
+            total_wait = float(tracker.get("total_wait", 0.0))
+            if tracker.get("active", False) and tracker.get("waiting_since") is not None:
+                total_wait += max(0.0, now - tracker["waiting_since"])
+
+            self.agv_total_permission_wait_time[agv] += total_wait
+            return total_wait
+
     # ==================== MQTT Monitoring ====================
 
     def start_mqtt_monitor(self, agv_serials: list[str]):
@@ -175,6 +245,7 @@ class MetricsCollector:
                 battery = payload.get("batteryState", {}).get("batteryCharge", 0)
                 ts = payload.get("timestamp", "")
                 self.record_battery_snapshot(serial, battery, ts)
+                self.record_agv_state(payload)
                 # Deadlock detection: check if AGV is stuck at same node for too long
                 self._check_deadlock(serial, payload)
         except Exception:
@@ -235,6 +306,7 @@ class MetricsCollector:
             "energy_consumed_pct",
             "distance_m",
             "wait_time_s",
+            "permission_wait_time_s",
             "move_time_s",
             "battery_remaining_pct",
             "timestamp",
@@ -262,6 +334,7 @@ class MetricsCollector:
             "total_energy_pct",
             "total_distance_m",
             "total_wait_time_s",
+            "total_permission_wait_time_s",
             "avg_flow_time_s",
             "avg_energy_pct",
         ]
@@ -284,6 +357,7 @@ class MetricsCollector:
                         "total_energy_pct": round(self.agv_total_energy.get(agv, 0), 3),
                         "total_distance_m": round(self.agv_total_distance.get(agv, 0), 2),
                         "total_wait_time_s": round(self.agv_total_wait_time.get(agv, 0), 2),
+                        "total_permission_wait_time_s": round(self.agv_total_permission_wait_time.get(agv, 0), 2),
                         "avg_flow_time_s": round(
                             self.agv_total_flow_time.get(agv, 0) / max(count, 1), 2
                         ),
@@ -424,6 +498,7 @@ class MetricsCollector:
             writer.writerow(["cv_distance", round(cv_distance, 4)])
             writer.writerow(["stuck_event_count", self.stuck_event_count])
             writer.writerow(["deadlock_count", self.deadlock_count])
+            writer.writerow(["total_permission_wait_time_s", round(sum(self.agv_total_permission_wait_time.values()), 2)])
             # --- Algorithm Overhead ---
             writer.writerow(["avg_bidding_time_ms", round(avg_bid_ms, 2)])
             writer.writerow(["max_bidding_time_ms", round(max_bid_ms, 2)])
@@ -441,6 +516,7 @@ class MetricsCollector:
         total_flow = sum(self.agv_total_flow_time.values())
         total_energy = sum(self.agv_total_energy.values())
         total_wait = sum(self.agv_total_wait_time.values())
+        total_permission_wait = sum(self.agv_total_permission_wait_time.values())
 
         # True makespan
         if self._first_task_dispatched > 0 and self._last_order_completed > 0:
@@ -458,6 +534,7 @@ class MetricsCollector:
         print(f"    Total Flow Time:    {total_flow:.1f}s")
         print(f"    Avg Flow/Task:      {total_flow / max(total_tasks, 1):.1f}s")
         print(f"    Total Wait Time:    {total_wait:.1f}s")
+        print(f"    Permission Wait:    {total_permission_wait:.1f}s")
         print(f"    Throughput:         {total_tasks / max(sim_duration / 60, 0.01):.2f} tasks/min")
 
         # 2. Energy
