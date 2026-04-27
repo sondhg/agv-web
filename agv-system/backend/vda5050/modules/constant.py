@@ -1,3 +1,5 @@
+import os
+
 # --- Physics-Based Energy Model Constants ---
 GRAVITY_MPS2 = 9.81          # Gravity acceleration (m/s²)
 AGV_MASS_KG = 50.0           # Mass of the AGV (kg)
@@ -29,9 +31,18 @@ UNREACHABLE_ROUTE_PENALTY = 10.0
 PENDING_ORDER_SOFT_PENALTY = 0.8
 
 # Auction strategy feature flag
-# 'SSI_MARGINAL': Existing SSI marginal-cost algorithm (default)
-# 'GREEDY_DISTANCE': Baseline nearest-neighbor by distance to pickup
-AUCTION_ALGORITHM = 'SSI_MARGINAL'
+# - SSI_MARGINAL: main method (energy + time + fairness + congestion aware)
+# - GREEDY_DISTANCE: nearest-neighbor by distance to pickup only
+# - GREEDY_ETA: nearest estimated completion time (queue + pickup + delivery)
+_DEFAULT_AUCTION_ALGORITHM = 'SSI_MARGINAL'
+_ALLOWED_AUCTION_ALGORITHMS = {
+    'SSI_MARGINAL',
+    'GREEDY_DISTANCE',
+    'GREEDY_ETA',
+}
+AUCTION_ALGORITHM = os.getenv('AUCTION_ALGORITHM', _DEFAULT_AUCTION_ALGORITHM).upper()
+if AUCTION_ALGORITHM not in _ALLOWED_AUCTION_ALGORITHMS:
+    AUCTION_ALGORITHM = _DEFAULT_AUCTION_ALGORITHM
 
 # System Default
 DEFAULT_LOAD_KG = 50.0  # Assuming average load weight if not known

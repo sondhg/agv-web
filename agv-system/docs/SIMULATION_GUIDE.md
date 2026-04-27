@@ -229,7 +229,7 @@ Where:
 | Level | Threshold | Bidding Behavior |
 |-------|-----------|-----------------|
 | Normal | ≥ 30% | Full participation, no penalty |
-| Low | 10% - 30% | Participates with ×1.5 penalty on marginal cost |
+| Low | 10% - 30% | Participates with $1 + \alpha(SoC_{safe} - SoC)$ penalty |
 | Critical | < 10% | Rejected from all auctions, error reported |
 
 ---

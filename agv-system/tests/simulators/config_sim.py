@@ -24,44 +24,59 @@ STATUS_PRINT_INTERVAL = 10.0    # seconds - fleet status display
 
 # ==================== Graph Node Positions ====================
 # Must match backend/vda5050/management/commands/setup_test_graph.py
+# Large factory layout: roughly 60m x 85m, with a long main corridor and
+# dedicated charging, pickup, and delivery zones.
 NODE_POSITIONS = {
-    "Node_A": {"x": 0,  "y": 0},
-    "Node_B": {"x": 10, "y": 0},
-    "Node_C": {"x": 20, "y": 0},
-    "Node_D": {"x": 30, "y": 0},
-    "Node_E": {"x": 0,  "y": 10},
-    "Node_F": {"x": 10, "y": 10},
-    "Node_G": {"x": 20, "y": 10},
-    "Node_H": {"x": 30, "y": 10},
+    "Charge_01": {"x": 0, "y": 0},
+    "Charge_02": {"x": 0, "y": 8},
+    "Depot_Gate": {"x": 8, "y": 4},
+    "Depot_Buffer": {"x": 16, "y": 10},
+    "Main_S": {"x": 8, "y": 25},
+    "Main_C": {"x": 8, "y": 55},
+    "Main_N": {"x": 8, "y": 85},
+    "West_S": {"x": -8, "y": 25},
+    "West_C": {"x": -8, "y": 55},
+    "West_N": {"x": -8, "y": 85},
+    "Aisle_S": {"x": 28, "y": 25},
+    "Aisle_C": {"x": 28, "y": 55},
+    "Aisle_N": {"x": 28, "y": 85},
+    "Aisle2_S": {"x": 36, "y": 25},
+    "Aisle2_C": {"x": 36, "y": 55},
+    "Aisle2_N": {"x": 36, "y": 85},
+    "WH_Pick_1": {"x": 45, "y": 25},
+    "WH_Pick_2": {"x": 45, "y": 55},
+    "WH_Pick_3": {"x": 45, "y": 85},
+    "Assy_Drop_1": {"x": -15, "y": 55},
+    "Assy_Drop_2": {"x": -15, "y": 85},
 }
 
 # ==================== Default AGV Fleet ====================
 # Format: serial_number -> {node, battery}
 # Easy to change fleet size by editing this dict
 DEFAULT_AGV_FLEET = {
-    "AGV_01": {"node": "Node_B", "battery": 95.0},
-    "AGV_02": {"node": "Node_C", "battery": 90.0},
-    "AGV_03": {"node": "Node_D", "battery": 85.0},
+    "AGV_01": {"node": "Charge_01", "battery": 95.0},
+    "AGV_02": {"node": "Depot_Gate", "battery": 90.0},
+    "AGV_03": {"node": "Main_S", "battery": 85.0},
 }
 
 # Larger fleet for stress testing
 LARGE_AGV_FLEET = {
-    "AGV_01": {"node": "Node_A", "battery": 95.0},
-    "AGV_02": {"node": "Node_B", "battery": 90.0},
-    "AGV_03": {"node": "Node_C", "battery": 85.0},
-    "AGV_04": {"node": "Node_D", "battery": 80.0},
-    "AGV_05": {"node": "Node_E", "battery": 75.0},
-    "AGV_06": {"node": "Node_F", "battery": 70.0},
-    "AGV_07": {"node": "Node_G", "battery": 65.0},
+    "AGV_01": {"node": "Charge_01", "battery": 95.0},
+    "AGV_02": {"node": "Charge_02", "battery": 90.0},
+    "AGV_03": {"node": "Depot_Gate", "battery": 85.0},
+    "AGV_04": {"node": "Main_S", "battery": 80.0},
+    "AGV_05": {"node": "Main_C", "battery": 75.0},
+    "AGV_06": {"node": "Aisle_S", "battery": 70.0},
+    "AGV_07": {"node": "Aisle_C", "battery": 65.0},
 }
 
 # Fleet with mixed battery levels for battery constraint testing
 MIXED_BATTERY_FLEET = {
-    "AGV_01": {"node": "Node_A", "battery": 95.0},
-    "AGV_02": {"node": "Node_B", "battery": 50.0},
-    "AGV_03": {"node": "Node_C", "battery": 25.0},  # Low battery - penalty
-    "AGV_04": {"node": "Node_D", "battery": 8.0},   # Critical - rejected
-    "AGV_05": {"node": "Node_E", "battery": 15.0},   # Low battery - penalty
+    "AGV_01": {"node": "Charge_01", "battery": 95.0},
+    "AGV_02": {"node": "Depot_Gate", "battery": 50.0},
+    "AGV_03": {"node": "Main_C", "battery": 25.0},  # Low battery - penalty
+    "AGV_04": {"node": "Aisle_C", "battery": 8.0},  # Critical - rejected
+    "AGV_05": {"node": "West_C", "battery": 15.0},  # Low battery - penalty
 }
 
 
@@ -77,11 +92,25 @@ def generate_fleet(count: int, start_battery: float = 95.0, battery_step: float 
     Returns:
         dict of serial_number -> config
     """
-    nodes = list(NODE_POSITIONS.keys())
+    start_nodes = [
+        "Charge_01",
+        "Charge_02",
+        "Depot_Gate",
+        "Depot_Buffer",
+        "Main_S",
+        "Main_C",
+        "Main_N",
+        "West_S",
+        "West_C",
+        "West_N",
+        "Aisle_S",
+        "Aisle_C",
+        "Aisle_N",
+    ]
     fleet = {}
     for i in range(1, min(count + 1, 21)):
         serial = f"AGV_{i:02d}"
-        node = nodes[(i - 1) % len(nodes)]
+        node = start_nodes[(i - 1) % len(start_nodes)]
         battery = max(20.0, start_battery - (i - 1) * battery_step)
         fleet[serial] = {"node": node, "battery": battery}
     return fleet

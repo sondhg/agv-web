@@ -83,6 +83,13 @@ class AuctionCoordinator:
                 bid_result = self.bid_calculator.calculate_greedy_distance_bid(
                     agv, pickup_node_id
                 )
+            elif algorithm == 'GREEDY_ETA':
+                bid_result = self.bid_calculator.calculate_greedy_eta_bid(
+                    agv,
+                    pickup_node_id,
+                    delivery_node_id=delivery_node_id,
+                    load_kg=load_kg,
+                )
             else:
                 raise ValueError(f"Unknown AUCTION_ALGORITHM: {algorithm}")
             
@@ -98,11 +105,20 @@ class AuctionCoordinator:
                         f"T={bid_result['time_marginal']:.2f}s, "
                         f"Bat={bid_result['battery']}%)"
                     )
-                else:
+                elif algorithm == 'GREEDY_DISTANCE':
                     logger.info(
                         f"   🤖 {agv.serial_number}: "
                         f"Bid={bid_score:.4f} "
                         f"(Dist={bid_result['distance_to_pickup_m']:.2f}m, "
+                        f"Start={bid_result['start_node']}, "
+                        f"Bat={bid_result['battery']}%)"
+                    )
+                else:
+                    logger.info(
+                        f"   🤖 {agv.serial_number}: "
+                        f"Bid={bid_score:.4f} "
+                        f"(ETA={bid_result.get('eta_s', bid_score):.2f}s, "
+                        f"Queue={bid_result.get('queue_time_s', 0.0):.2f}s, "
                         f"Start={bid_result['start_node']}, "
                         f"Bat={bid_result['battery']}%)"
                     )
@@ -125,8 +141,15 @@ class AuctionCoordinator:
             logger.warning("No valid bids received")
             return None, None
         
-        # Sort bids by score (ascending)
-        bids.sort(key=lambda x: x[0])
+        # Deterministic sort for reproducible experiments:
+        # 1) score asc, 2) battery desc, 3) serial asc
+        bids.sort(
+            key=lambda x: (
+                x[0],
+                -float(x[2].get('battery', 0.0)),
+                str(x[1].serial_number),
+            )
+        )
         
         winner_score, winner_agv, winner_details = bids[0]
         
@@ -193,6 +216,9 @@ class AuctionCoordinator:
             logger.info(f"   Time: {winner_details['time_marginal']:.2f}s")
         elif AUCTION_ALGORITHM == 'GREEDY_DISTANCE':
             logger.info(f"   Distance to Pickup: {winner_details['distance_to_pickup_m']:.2f}m")
+        elif AUCTION_ALGORITHM == 'GREEDY_ETA':
+            logger.info(f"   ETA: {winner_details.get('eta_s', winner_details['bid_final']):.2f}s")
+            logger.info(f"   Queue Time: {winner_details.get('queue_time_s', 0.0):.2f}s")
         logger.info(f"   Battery: {winner_details['battery']}%")
         logger.info("========== END AUCTION ==========")
         

@@ -182,8 +182,9 @@ class SimulationRunner:
                     data = resp.json()
                     winner = data.get("winner_agv", "?")
                     order_id = data.get("order_id", "?")
+                    auction_algorithm = data.get("auction_algorithm", "unknown")
                     logger.info(
-                        f"    -> Assigned to {winner} (Order: {order_id}, Bid: {bidding_time_ms}ms)"
+                        f"    -> Assigned to {winner} (Order: {order_id}, Bid: {bidding_time_ms}ms, Algo: {auction_algorithm})"
                     )
 
                     self.metrics.record_task_assignment(
@@ -192,6 +193,7 @@ class SimulationRunner:
                             "winner_agv": winner,
                             "pickup_node": pickup,
                             "delivery_node": delivery,
+                            "auction_algorithm": auction_algorithm,
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                             "bidding_time_ms": bidding_time_ms,
                         }

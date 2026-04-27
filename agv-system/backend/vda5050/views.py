@@ -16,6 +16,7 @@ from .serializers import (
 )
 from .modules.scheduler import Scheduler
 from .modules.bidding import BiddingEngine
+from .modules.constant import AUCTION_ALGORITHM
 from .graph_engine import GraphEngine
 
 
@@ -97,6 +98,7 @@ class TaskViewSet(viewsets.ViewSet):
 
         if result["success"]:
             result["winner_agv"] = winner_agv.serial_number
+            result["auction_algorithm"] = AUCTION_ALGORITHM
             if epsilon is not None:
                 result["epsilon"] = epsilon
             return Response(result, status=status.HTTP_201_CREATED)

@@ -300,11 +300,16 @@ logger.debug(f"  - Time: {time_marginal:.2f}s (norm: {norm_time:.2f})")
 
 ### 1. Battery Constraint
 ```python
-BATTERY_RESERVE = 20.0  # Keep 20% reserve
-MIN_BATTERY = 30.0      # Reject if <30%
+SOC_SAFE = 30.0
+SOC_CRITICAL = 10.0
+ALPHA = 0.05
 
-if battery < MIN_BATTERY or remaining_battery < BATTERY_RESERVE:
-    return None  # Cannot bid
+if battery < SOC_CRITICAL:
+    return None  # Hard reject
+elif battery <= SOC_SAFE:
+    penalty = 1 + ALPHA * (SOC_SAFE - battery)
+else:
+    penalty = 1.0
 ```
 
 ### 2. Wait Time Penalty

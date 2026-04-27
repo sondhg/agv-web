@@ -58,6 +58,9 @@ class BidCalculator:
         logger.debug("BidCalculator initialized")
 
     CHARGING_RELEASE_THRESHOLD = 80.0
+    SOC_SAFE_THRESHOLD = 30.0
+    SOC_CRITICAL_THRESHOLD = 10.0
+    BATTERY_PENALTY_ALPHA = 0.05
 
     @staticmethod
     def _build_greedy_invalid_result(battery, start_node):
@@ -133,17 +136,23 @@ class BidCalculator:
                 'penalty_factor': float('inf')
             }
 
-        if battery_percent < 10.0:
+        if battery_percent < cls.SOC_CRITICAL_THRESHOLD:
             # Below 10%: hard reject.
             logger.warning(f"Critical battery: {battery_percent}% - REJECTED")
             return {
                 'is_acceptable': False,
                 'penalty_factor': float('inf')
             }
-        elif battery_percent < 30.0:
-            # Below 30%: accepted with strong penalty.
-            penalty = 1.5
-            logger.info(f"Low battery: {battery_percent}% - Penalty x{penalty}")
+        elif battery_percent <= cls.SOC_SAFE_THRESHOLD:
+            # 10% - 30%: accepted with linear SoC-aware penalty.
+            # penalty = 1 + alpha * (SoC_safe - SoC)
+            penalty = 1.0 + cls.BATTERY_PENALTY_ALPHA * (
+                cls.SOC_SAFE_THRESHOLD - battery_percent
+            )
+            logger.info(
+                f"Low battery: {battery_percent}% - Penalty x{penalty:.3f} "
+                f"(alpha={cls.BATTERY_PENALTY_ALPHA})"
+            )
             return {
                 'is_acceptable': True,
                 'penalty_factor': penalty
@@ -178,6 +187,21 @@ class BidCalculator:
             }
         """
         return self.greedy_strategy.calculate_bid(agv, pickup_node_id)
+
+    def calculate_greedy_eta_bid(
+        self,
+        agv,
+        pickup_node_id,
+        delivery_node_id=None,
+        load_kg=DEFAULT_LOAD_KG,
+    ):
+        """Baseline bid: greedy by projected completion time (ETA)."""
+        return self.greedy_strategy.calculate_eta_bid(
+            agv,
+            pickup_node_id,
+            delivery_node_id=delivery_node_id,
+            load_kg=load_kg,
+        )
     
     def calculate_wait_cost(self, agv, current_node, load_kg):
         """

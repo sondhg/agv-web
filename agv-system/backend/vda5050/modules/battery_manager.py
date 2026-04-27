@@ -11,7 +11,7 @@ from vda5050.modules.scheduler import Scheduler
 class BatteryManager:
     """Handle low-battery monitoring and charging-order trigger for AGVs."""
 
-    BATTERY_LOW_THRESHOLD: float = 20.0
+    BATTERY_LOW_THRESHOLD: float = 30.0
     CHARGING_RETRY_COOLDOWN_SECONDS: int = 60
 
     @staticmethod

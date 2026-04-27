@@ -41,6 +41,7 @@ services:
       - DB_PASS=agv_password
       - MQTT_BROKER=mqtt
       - MQTT_PORT=1883  # Port nội bộ docker là 1883
+      - AUCTION_ALGORITHM=${AUCTION_ALGORITHM:-SSI_MARGINAL}
 
   # 4. MQTT Worker (Xử lý logic nền: Nghe State, Dispatch Order)
   mqtt_worker:
@@ -61,6 +62,7 @@ services:
       - DB_PASS=agv_password
       - MQTT_BROKER=mqtt
       - MQTT_PORT=1883
+      - AUCTION_ALGORITHM=${AUCTION_ALGORITHM:-SSI_MARGINAL}
     restart: always # Tự khởi động lại nếu bị crash hoặc db chưa sẵn sàng
 
 volumes:

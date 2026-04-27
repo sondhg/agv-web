@@ -426,6 +426,7 @@ class MetricsCollector:
         filepath = os.path.join(self.output_dir, f"{prefix}_assignments.csv")
         headers = [
             "order_id", "winner_agv", "pickup_node", "delivery_node",
+            "auction_algorithm",
             "bidding_time_ms", "timestamp",
         ]
 
@@ -475,11 +476,21 @@ class MetricsCollector:
         else:
             avg_bid_ms = max_bid_ms = min_bid_ms = 0
 
+        algorithms = sorted(
+            {
+                str(record.get("auction_algorithm", "unknown"))
+                for record in self.task_assignments
+                if record.get("auction_algorithm")
+            }
+        )
+        algorithm_label = ",".join(algorithms) if algorithms else "unknown"
+
         with open(filepath, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["metric", "value"])
             # --- Scenario ---
             writer.writerow(["scenario", self.scenario_name])
+            writer.writerow(["auction_algorithm", algorithm_label])
             writer.writerow(["num_agvs", len(self.agv_task_count)])
             writer.writerow(["aux_orders_completed", len(self.aux_order_records)])
             # --- Time & Efficiency ---

@@ -81,7 +81,7 @@ class AdvancedMockAGV:
         # Battery
         self.battery: float = initial_battery
         self.is_charging: bool = False
-        self.charge_rate_pct_per_s: float = 1.0
+        self.charge_rate_pct_per_s: float = self.energy.CHARGE_RATE_PCT_PER_S
 
         # Operating state
         self.op_state: str = self.STATE_IDLE

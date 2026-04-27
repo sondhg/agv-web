@@ -7,15 +7,8 @@ Each scenario defines:
 - Description for documentation
 """
 
-from config_sim import NODE_POSITIONS
+import os
 import random
-
-
-# Available nodes for task generation
-ALL_NODES = list(NODE_POSITIONS.keys())
-# Separate rows for structured task generation
-ROW_1 = ["Node_A", "Node_B", "Node_C", "Node_D"]
-ROW_2 = ["Node_E", "Node_F", "Node_G", "Node_H"]
 
 
 def _make_task(pickup: str, delivery: str, delay: float = 0.0) -> dict:
@@ -23,12 +16,18 @@ def _make_task(pickup: str, delivery: str, delay: float = 0.0) -> dict:
 
 
 # ==================== Scenario 1: Continuous Shift (Endurance) ====================
-def generate_continuous_shift_scenario(duration_hours=2):
+def generate_continuous_shift_scenario(
+    duration_hours=2,
+    min_task_interval_s=20,
+    max_task_interval_s=35,
+    seed=None,
+):
     """
     Sinh tự động hàng trăm tasks rải đều trong khoảng thời gian duration_hours.
     Phù hợp với bản đồ large_factory_1 để test Battery Cycling và Endurance.
     """
     total_seconds = int(duration_hours * 3600)
+    rng = random.Random(seed) if seed is not None else random
     
     # 1. Định nghĩa các điểm bốc/dỡ hàng theo đúng Large Factory Map
     pickup_nodes = ["WH_Pick_1", "WH_Pick_2", "WH_Pick_3"]
@@ -52,30 +51,36 @@ def generate_continuous_shift_scenario(duration_hours=2):
     
     # 3. Vòng lặp sinh Task liên tục cho đến khi hết ca làm việc
     while current_delay < total_seconds:
-        pickup = random.choice(pickup_nodes)
-        delivery = random.choice(delivery_nodes)
+        pickup = rng.choice(pickup_nodes)
+        delivery = rng.choice(delivery_nodes)
         
         # Thêm task vào danh sách với thời gian trễ tương ứng
         tasks.append(_make_task(pickup, delivery, delay=current_delay))
         
-        # Thời gian giữa các order mới (Random từ 15 giây đến 45 giây có 1 order)
-        # Bạn có thể giảm con số này xuống nếu muốn test nhà máy công suất cao (vd: 10, 20)
-        current_delay += random.randint(10, 20)
+        # Cadence kiểu warehouse liên tục: một task mới mỗi 20-35 giây.
+        # Nếu muốn test tải cao hơn, hãy giảm interval này xuống.
+        current_delay += rng.randint(min_task_interval_s, max_task_interval_s)
         
     return {
         "name": "continuous_shift",
         "description": (
             f"Endurance test: {duration_hours} hours continuous operation. "
-            f"Generates ~{len(tasks)} random tasks. Tests battery cycling, "
+            f"Generates ~{len(tasks)} random tasks at a 20-35s arrival cadence. "
+            f"Seed={seed if seed is not None else 'runtime-random'}. "
+            f"Tests battery cycling, "
             f"auto-charging capability, and system stability."
         ),
         "fleet": fleet,
         "tasks": tasks,
-        "timeout_s": total_seconds + 300, # Cộng dư 5 phút để hoàn thành các task cuối cùng
+        "timeout_s": total_seconds + 1800, # Cộng dư 30 phút để xử lý backlog cuối ca
     }
 
 # Gọi hàm để sinh ra dictionary scenario (ở đây set mặc định là 2 tiếng)
-SCENARIO_CONTINUOUS_SHIFT = generate_continuous_shift_scenario(duration_hours=2)
+CONTINUOUS_SHIFT_SEED = int(os.getenv("SIM_SCENARIO_SEED", "42"))
+SCENARIO_CONTINUOUS_SHIFT = generate_continuous_shift_scenario(
+    duration_hours=2,
+    seed=CONTINUOUS_SHIFT_SEED,
+)
 
 # ==================== Scenario 2: Deadlock Contention ====================
 SCENARIO_DEADLOCK = {
