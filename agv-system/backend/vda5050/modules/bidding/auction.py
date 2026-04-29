@@ -108,18 +108,19 @@ class AuctionCoordinator:
                 elif algorithm == 'GREEDY_DISTANCE':
                     logger.info(
                         f"   🤖 {agv.serial_number}: "
-                        f"Bid={bid_score:.4f} "
-                        f"(Dist={bid_result['distance_to_pickup_m']:.2f}m, "
-                        f"Start={bid_result['start_node']}, "
+                        f"Bid={bid_score:.4f}m "
+                        f"(Distance to pickup={bid_result['distance_to_pickup_m']:.2f}m, "
+                        f"From={bid_result['current_node']}, "
                         f"Bat={bid_result['battery']}%)"
                     )
-                else:
+                else:  # GREEDY_ETA
                     logger.info(
                         f"   🤖 {agv.serial_number}: "
-                        f"Bid={bid_score:.4f} "
+                        f"Bid={bid_score:.4f}s "
                         f"(ETA={bid_result.get('eta_s', bid_score):.2f}s, "
                         f"Queue={bid_result.get('queue_time_s', 0.0):.2f}s, "
-                        f"Start={bid_result['start_node']}, "
+                        f"Travel={bid_result.get('time_to_pickup_s', 0.0):.2f}s, "
+                        f"From={bid_result['start_node']}, "
                         f"Bat={bid_result['battery']}%)"
                     )
             else:

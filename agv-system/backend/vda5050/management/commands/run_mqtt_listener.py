@@ -8,6 +8,7 @@ from django.utils import timezone
 import paho.mqtt.client as mqtt
 from vda5050.models import AGV, AGVState, Order
 from vda5050.graph_engine import GraphEngine
+from vda5050.modules.battery_manager import BatteryManager
 from vda5050.modules.deadlock import DeadlockMonitorService
 from vda5050.modules.reservation import ReservationService
 
@@ -25,10 +26,21 @@ class Command(BaseCommand):
             position_epsilon_m=float(os.environ.get("DEADLOCK_POSITION_EPS_M", "0.2")),
         )
         self.reservation_service = ReservationService()
+        self.battery_manager = BatteryManager()
         self._progress_cache = {}
+        self._telemetry_cache = {}
         self._eta_speed_mps = float(os.environ.get("AGV_PROGRESS_ETA_SPEED_MPS", "10.0"))
         self._horizon_release_window_seq = int(
             os.environ.get("HORIZON_RELEASE_WINDOW_SEQ", "4")
+        )
+        self._state_persist_heartbeat_s = float(
+            os.environ.get("STATE_PERSIST_HEARTBEAT_S", "5")
+        )
+        self._state_position_delta_m = float(
+            os.environ.get("STATE_PERSIST_POSITION_DELTA_M", "0.5")
+        )
+        self._state_battery_delta_pct = float(
+            os.environ.get("STATE_PERSIST_BATTERY_DELTA_PCT", "1.0")
         )
 
         mqtt_broker = os.environ.get("MQTT_BROKER", "mqtt")
@@ -114,8 +126,11 @@ class Command(BaseCommand):
         else:
             ts_obj = timezone.now()
 
-        # 2. Create AGVState log
-        state = AGVState.objects.create(
+        if timezone.is_naive(ts_obj):
+            ts_obj = timezone.make_aware(ts_obj, timezone.get_current_timezone())
+
+        # Build state snapshot once; decide later whether to persist it.
+        state_data = dict(
             agv=agv,
             header_id=payload.get("headerId", 0),
             timestamp=ts_obj,
@@ -134,6 +149,26 @@ class Command(BaseCommand):
             information=payload.get("information", {}),
         )
 
+        should_persist, persist_reason = self.should_persist_state(
+            serial_number,
+            payload,
+            ts_obj,
+        )
+
+        if should_persist:
+            state = AGVState.objects.create(**state_data)
+            logger.debug(
+                "Persisted state for %s (reason=%s)",
+                serial_number,
+                persist_reason,
+            )
+        else:
+            # Keep realtime processing while skipping DB write for high-frequency frames.
+            state = AGVState(**state_data)
+            self.check_battery_from_state(agv, state)
+
+        self.update_telemetry_cache(serial_number, payload, ts_obj, should_persist)
+
         # 3. Update Order status based on AGVState
         # Use order_id from payload to identify the running order
         current_order_id = payload.get("orderId")
@@ -148,6 +183,158 @@ class Command(BaseCommand):
         # Or just finished an order, check queue once more
         if not state.driving and (not current_order_id or current_order_id == ""):
             self.check_and_process_queue(agv)
+
+    @staticmethod
+    def _safe_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _safe_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _extract_battery_charge(self, payload):
+        battery = payload.get("batteryState") or {}
+        for key in ("charge", "batteryCharge", "battery_charge"):
+            value = self._safe_float(battery.get(key))
+            if value is not None:
+                return value
+        return None
+
+    def _is_safety_event(self, payload):
+        safety = payload.get("safetyState") or {}
+        if bool(safety.get("fieldViolation")):
+            return True
+
+        estop = str(safety.get("eStop") or "").upper()
+        return estop not in {"", "NONE", "NO_STOP"}
+
+    def should_persist_state(self, serial_number, payload, ts_obj):
+        cache = self._telemetry_cache.get(serial_number)
+        if not cache:
+            return True, "first_state"
+
+        prev_snapshot = cache.get("last_seen") or {}
+        last_persist_ts = cache.get("last_persist_ts")
+
+        current_order_id = payload.get("orderId") or ""
+        current_node_id = payload.get("lastNodeId") or ""
+        current_seq = self._safe_int(payload.get("lastNodeSequenceId"), 0)
+        current_driving = bool(payload.get("driving", False))
+        current_paused = bool(payload.get("paused", False))
+        current_errors = bool(payload.get("errors") or [])
+        current_charging = bool((payload.get("batteryState") or {}).get("charging"))
+        current_battery = self._extract_battery_charge(payload)
+        current_pos = payload.get("agvPosition") or {}
+        current_x = self._safe_float(current_pos.get("x"))
+        current_y = self._safe_float(current_pos.get("y"))
+
+        if current_errors:
+            return True, "errors"
+        if self._is_safety_event(payload):
+            return True, "safety_event"
+
+        if current_order_id != (prev_snapshot.get("order_id") or ""):
+            return True, "order_changed"
+        if current_node_id != (prev_snapshot.get("node_id") or ""):
+            return True, "node_changed"
+        if current_seq != self._safe_int(prev_snapshot.get("sequence_id"), 0):
+            return True, "sequence_changed"
+        if current_driving != bool(prev_snapshot.get("driving", False)):
+            return True, "driving_changed"
+        if current_paused != bool(prev_snapshot.get("paused", False)):
+            return True, "paused_changed"
+        if current_charging != bool(prev_snapshot.get("charging", False)):
+            return True, "charging_changed"
+
+        prev_battery = prev_snapshot.get("battery")
+        if (
+            current_battery is not None
+            and prev_battery is not None
+            and abs(current_battery - prev_battery) >= self._state_battery_delta_pct
+        ):
+            return True, "battery_delta"
+
+        prev_x = prev_snapshot.get("x")
+        prev_y = prev_snapshot.get("y")
+        if (
+            current_x is not None
+            and current_y is not None
+            and prev_x is not None
+            and prev_y is not None
+        ):
+            dx = current_x - prev_x
+            dy = current_y - prev_y
+            if (dx * dx + dy * dy) ** 0.5 >= self._state_position_delta_m:
+                return True, "position_delta"
+
+        if last_persist_ts is None:
+            return True, "first_persist"
+
+        elapsed_s = (ts_obj - last_persist_ts).total_seconds()
+        if elapsed_s >= self._state_persist_heartbeat_s:
+            return True, "heartbeat"
+
+        return False, "sampled_out"
+
+    def update_telemetry_cache(self, serial_number, payload, ts_obj, persisted):
+        battery_state = payload.get("batteryState") or {}
+        position = payload.get("agvPosition") or {}
+
+        snapshot = {
+            "order_id": payload.get("orderId") or "",
+            "node_id": payload.get("lastNodeId") or "",
+            "sequence_id": self._safe_int(payload.get("lastNodeSequenceId"), 0),
+            "driving": bool(payload.get("driving", False)),
+            "paused": bool(payload.get("paused", False)),
+            "charging": bool(battery_state.get("charging")),
+            "battery": self._extract_battery_charge(payload),
+            "x": self._safe_float(position.get("x")),
+            "y": self._safe_float(position.get("y")),
+        }
+
+        cache = self._telemetry_cache.get(serial_number) or {}
+        cache["last_seen"] = snapshot
+        if persisted or cache.get("last_persist_ts") is None:
+            cache["last_persist_ts"] = ts_obj
+        self._telemetry_cache[serial_number] = cache
+
+    def check_battery_from_state(self, agv, state):
+        """Run battery manager for non-persisted frames (persisted frames use signal)."""
+        battery_data = state.battery_state or {}
+        if battery_data.get("charging") is True:
+            return
+
+        current_battery = battery_data.get("charge")
+        if current_battery is None:
+            current_battery = battery_data.get("batteryCharge")
+        if current_battery is None:
+            current_battery = battery_data.get("battery_charge")
+        if current_battery is None:
+            return
+
+        try:
+            current_battery = float(current_battery)
+        except (TypeError, ValueError):
+            return
+
+        try:
+            self.battery_manager.check_and_charge(
+                agv=agv,
+                current_battery=current_battery,
+                current_node_id=state.last_node_id,
+            )
+        except Exception as exc:
+            logger.error(
+                "Battery manager failed for %s: %s",
+                agv.serial_number,
+                exc,
+            )
 
     def check_deadlock_monitor(self, agv, state, current_order_id):
         """Run server-side deadlock monitor and emit potential events."""

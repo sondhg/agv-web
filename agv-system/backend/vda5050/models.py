@@ -164,8 +164,8 @@ class Order(models.Model):
 # ============================================
 class AGVState(models.Model):
     """
-    Track the entire history of states sent by the AGV.
-    Used for plotting graphs and investigating incidents.
+    Track sampled AGV states plus important events from telemetry.
+    Used for analytics and incident investigation without persisting every frame.
     """
     agv = models.ForeignKey(AGV, on_delete=models.CASCADE, related_name="states")
     

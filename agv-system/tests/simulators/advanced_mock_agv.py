@@ -101,6 +101,11 @@ class AdvancedMockAGV:
         self._total_wait_time: float = 0.0
         self._total_move_time: float = 0.0
         self._total_distance: float = 0.0
+        self._total_deadhead_distance: float = 0.0
+        # Track loaded distance and weighted load (for avg load during movement)
+        self._total_loaded_distance: float = 0.0
+        self._loaded_distance_weighted: float = 0.0
+        self._current_load_weight_kg: float = 0.0
 
         # Movement interpolation state
         self._move_start_x: float = self.x
@@ -187,6 +192,10 @@ class AdvancedMockAGV:
             self._total_wait_time = 0.0
             self._total_move_time = 0.0
             self._total_distance = 0.0
+            self._total_deadhead_distance = 0.0
+            self._total_loaded_distance = 0.0
+            self._loaded_distance_weighted = 0.0
+            self._current_load_weight_kg = 0.0
 
             # Check battery constraint
             if self.battery < self.energy.BATTERY_CRITICAL:
@@ -309,6 +318,13 @@ class AdvancedMockAGV:
         self.battery -= e_move
         self._total_move_time += dt
         self._total_distance += step
+        # Track deadheading distance (movement while not carrying load)
+        if not self.current_load:
+            self._total_deadhead_distance += step
+        else:
+            # carrying load: accumulate loaded distance and weighted sum
+            self._total_loaded_distance += step
+            self._loaded_distance_weighted += step * float(getattr(self, "_current_load_weight_kg", 0.0))
 
         # Check battery
         if self.battery <= 0:
@@ -364,10 +380,21 @@ class AdvancedMockAGV:
         for action in actions:
             action_type = action.get("actionType", "")
             if action_type == "pick":
-                self.current_load = {"type": "package", "weight": 50}
-                logger.info(f"[{self.serial_number}] Picked up load")
+                # Respect weight if provided, else default 50kg
+                weight = action.get("weight")
+                if weight is None:
+                    for param in action.get("actionParameters", []) or []:
+                        key = param.get("key") or param.get("name")
+                        if key == "weight":
+                            weight = param.get("value")
+                            break
+                weight = weight or 50
+                self.current_load = {"type": "package", "weight": weight}
+                self._current_load_weight_kg = float(weight)
+                logger.info(f"[{self.serial_number}] Picked up load (weight={weight}kg)")
             elif action_type == "drop":
                 self.current_load = None
+                self._current_load_weight_kg = 0.0
                 logger.info(f"[{self.serial_number}] Dropped load")
             elif action_type == "startCharging":
                 self.is_charging = True
@@ -380,6 +407,23 @@ class AdvancedMockAGV:
         order_id = self.order_id
         flow_time = time.time() - self._order_start_time
         energy_consumed = self._order_energy_start - self.battery
+
+        # Prefer physics-based energy calc from TransportCalculator when available
+        energy_kj_physics = None
+        try:
+            from backend.vda5050.modules.bidding.calculators.transport import TransportCalculator
+
+            calc = TransportCalculator()
+            # Energies: compute loaded and empty segments separately
+            loaded_d = self._total_loaded_distance
+            dead_d = self._total_deadhead_distance
+            avg_load = (self._loaded_distance_weighted / loaded_d) if loaded_d > 0 else 0.0
+            e_loaded = calc.calculate_energy_consumption(loaded_d, num_turns=0, load_kg=avg_load) if loaded_d > 0 else 0.0
+            e_empty = calc.calculate_energy_consumption(dead_d, num_turns=0, load_kg=0.0) if dead_d > 0 else 0.0
+            energy_kj_physics = e_loaded + e_empty
+        except Exception:
+            # best-effort import; fall back to percent->kJ below
+            energy_kj_physics = None
 
         logger.info(
             f"[{self.serial_number}] Order {order_id} COMPLETED | "
@@ -395,7 +439,10 @@ class AdvancedMockAGV:
                     "order_id": order_id,
                     "flow_time_s": round(flow_time, 2),
                     "energy_consumed_pct": round(energy_consumed, 3),
+                    # If physics calc succeeded, prefer it; otherwise use percent->kJ
+                    "energy_consumed_kj": round(energy_kj_physics, 3) if energy_kj_physics is not None else round(self.energy.percent_to_kj(energy_consumed), 3),
                     "distance_m": round(self._total_distance, 2),
+                    "deadhead_distance_m": round(self._total_deadhead_distance, 2),
                     "wait_time_s": round(self._total_wait_time, 2),
                     "move_time_s": round(self._total_move_time, 2),
                     "battery_remaining_pct": round(self.battery, 2),

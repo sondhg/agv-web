@@ -4,11 +4,25 @@ from django.utils import timezone
 from vda5050.models import AGV, AGVState, Order
 from vda5050.graph_engine import GraphEngine
 from vda5050.modules.reservation import ReservationService
+from vda5050.modules.constant import DEFAULT_LOAD_KG
 
 class Scheduler:
     def __init__(self):
         self.graph_engine = GraphEngine()
         self.reservation_service = ReservationService()
+
+    @staticmethod
+    def _append_action(node: dict, action_type: str, weight: float | None = None) -> None:
+        action = {
+            "actionType": action_type,
+            "actionId": f"{action_type}_{int(time.time())}",
+            "blockingType": "HARD",
+            "actionParameters": [],
+        }
+        if weight is not None:
+            action["weight"] = weight
+            action["actionParameters"].append({"key": "weight", "value": weight})
+        node.setdefault("actions", []).append(action)
 
     @staticmethod
     def _merge_legs(nodes_leg1, edges_leg1, nodes_leg2, edges_leg2):
@@ -172,6 +186,14 @@ class Scheduler:
                         conflict_edge_ids=final_conflict_result.edge_ids,
                     )
 
+        # Mark transport phase boundaries for simulator metrics.
+        for node in all_nodes:
+            node_id = node.get("nodeId")
+            if node_id == pickup_node_id:
+                self._append_action(node, "pick", weight=DEFAULT_LOAD_KG)
+            elif node_id == delivery_node_id:
+                self._append_action(node, "drop")
+
         # 4. Create new Order in Database
         # (Signal post_save will automatically send MQTT)
         new_order_id = f"ORD_{uuid.uuid4().hex[:8].upper()}"
@@ -220,12 +242,38 @@ class Scheduler:
         except AGV.DoesNotExist:
             return {"success": False, "error": "AGV does not exist"}
 
+        # 1b. If AGV already has in-flight work, chain charging after the last
+        # pending order and keep it QUEUED instead of dispatching immediately.
+        initial_status = "CREATED"
+        effective_start_node = start_node_id
+        last_active_order = (
+            Order.objects.filter(
+                agv=agv,
+                status__in=["SENT", "ACTIVE", "QUEUED"],
+            )
+            .order_by("-created_at")
+            .first()
+        )
+
+        if last_active_order:
+            try:
+                effective_start_node = last_active_order.nodes[-1]["nodeId"]
+                initial_status = "QUEUED"
+            except (IndexError, KeyError, TypeError):
+                return {
+                    "success": False,
+                    "error": "Malformed nodes data in previous order",
+                }
+
         # 2. Calculate path to charging station.
-        nodes, edges = self.graph_engine.get_path(start_node_id, charging_node_id)
+        nodes, edges = self.graph_engine.get_path(effective_start_node, charging_node_id)
         if not nodes:
             return {
                 "success": False,
-                "error": f"Path not found from {start_node_id} to {charging_node_id}",
+                "error": (
+                    f"Path not found from {effective_start_node} "
+                    f"to {charging_node_id}"
+                ),
             }
 
         self.reservation_service.expire_old_reservations()
@@ -261,7 +309,7 @@ class Scheduler:
             order_update_id=0,
             zone_set_id="zone_1",
             agv=agv,
-            status="CREATED",
+            status=initial_status,
             nodes=nodes,
             edges=edges,
         )
@@ -271,7 +319,12 @@ class Scheduler:
         return {
             "success": True,
             "order_id": new_order_id,
-            "message": "Charging order created successfully",
+            "status": initial_status,
+            "message": (
+                "Charging order created and sent"
+                if initial_status == "CREATED"
+                else f"Charging order queued (start from {effective_start_node})"
+            ),
             "reservation_conflict_detected": conflict_result.has_conflict,
             "reservation_horizon_release_used": used_horizon_release,
             "release_cut_sequence": release_cut_sequence,

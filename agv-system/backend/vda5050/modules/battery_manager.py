@@ -35,10 +35,13 @@ class BatteryManager:
 
         Steps:
         1. Exit when battery is still above the configured low threshold.
-        2. Exit when AGV is busy with ACTIVE/SENT orders.
-        3. Find all charging stations on the AGV's current map.
-        4. Compute nearest charging station by Euclidean distance.
-        5. Trigger Scheduler.create_charging_order for the closest station.
+        2. Find all charging stations on the AGV's current map.
+        3. Compute nearest charging station by Euclidean distance.
+        4. Trigger Scheduler.create_charging_order for the closest station.
+
+        Note:
+        - If AGV is currently busy, Scheduler will automatically create the
+          charging order as QUEUED (chained after current workload).
         """
         # Step 1: Battery is not low yet, no charging action needed.
         if current_battery > self.BATTERY_LOW_THRESHOLD:
@@ -52,22 +55,7 @@ class BatteryManager:
             print(f"⚠️ AGV {agv.serial_number}: missing current_node_id, skip charging check.")
             return
 
-        # Step 2: If AGV has any ACTIVE/SENT order, it is considered busy.
-        is_busy = agv.orders.filter(
-            status__in=[
-                Order.OrderStatus.ACTIVE,
-                Order.OrderStatus.SENT,
-                Order.OrderStatus.QUEUED,
-            ]
-        ).exists()
-        if is_busy:
-            print(
-                f"⏳ AGV {agv.serial_number}: low battery ({current_battery:.2f}%) "
-                "but AGV is busy (ACTIVE/SENT order exists), skip charging order."
-            )
-            return
-
-        # Step 3: Find all charging stations on the same map as AGV.
+        # Step 2: Find all charging stations on the same map as AGV.
         charging_stations = GraphNode.objects.filter(
             map_id=agv.current_map_id,
             node_type=GraphNode.NodeType.CHARGING,
@@ -129,7 +117,7 @@ class BatteryManager:
                     )
                     return
 
-        # Step 4: Scan all charging stations and pick the nearest one.
+        # Step 3: Scan all charging stations and pick the nearest one.
         closest_station: Optional[GraphNode] = None
         min_distance: float = float("inf")
 
@@ -139,7 +127,7 @@ class BatteryManager:
                 min_distance = distance
                 closest_station = station
 
-        # Step 5: Create charging order for the nearest charging station.
+        # Step 4: Create charging order for the nearest charging station.
         if closest_station is not None:
             scheduler = Scheduler()
             result = scheduler.create_charging_order(

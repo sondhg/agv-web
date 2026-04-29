@@ -11,7 +11,7 @@ class EnergyConfig:
     """Physical constants for AGV energy calculations."""
 
     # Kinematic parameters
-    VELOCITY: float = 1.5  # m/s  - Translational velocity
+    VELOCITY: float = 2.0  # m/s  - Translational velocity
     ROTATION_SPEED: float = 45.0  # deg/s - Rotation speed
 
     # Power consumption rates (battery % per second)
@@ -27,6 +27,9 @@ class EnergyConfig:
     # Charging model
     CHARGE_RATE_PCT_PER_S: float = 0.25  # %/s - Opportunity charging rate
 
+    # Battery nominal capacity (for converting % -> energy units)
+    # Default: 1.0 kWh (3600 kJ). Adjust to match real AGV battery.
+    BATTERY_CAPACITY_KWH: float = 1.0
     def calculate_move_energy(self, distance_m: float) -> tuple[float, float]:
         """
         Calculate translational energy cost.
@@ -81,6 +84,20 @@ class EnergyConfig:
             "energy_idle_pct": e_idle,
             "energy_total_pct": e_move + e_turn + e_idle,
         }
+
+    def percent_to_kwh(self, percent: float) -> float:
+        """
+        Convert battery percentage to kWh based on nominal battery capacity.
+        """
+        return (percent / 100.0) * self.BATTERY_CAPACITY_KWH
+
+    def percent_to_kj(self, percent: float) -> float:
+        """
+        Convert battery percentage to kJ.
+
+        1 kWh = 3600 kJ
+        """
+        return self.percent_to_kwh(percent) * 3600.0
 
 
 # Singleton instance

@@ -9,7 +9,8 @@ from vda5050.graph_engine import GraphEngine
 from vda5050.modules.reservation import ReservationService
 from .transport import TransportCalculator
 from .baseline import BaselineCalculator
-from .greedy_bid import GreedyBidStrategy
+from .greedy_distance_bid import GreedyDistanceBidStrategy
+from .greedy_eta_bid import GreedyEtaBidStrategy
 from .ssi_marginal_bid import SsiMarginalBidStrategy
 from ...constant import (
     DEFAULT_LOAD_KG,
@@ -52,7 +53,8 @@ class BidCalculator:
             self.transport_calculator
         )
         self.reservation_service = ReservationService()
-        self.greedy_strategy = GreedyBidStrategy(self)
+        self.greedy_distance_strategy = GreedyDistanceBidStrategy(self)
+        self.greedy_eta_strategy = GreedyEtaBidStrategy(self)
         self.ssi_strategy = SsiMarginalBidStrategy(self)
         
         logger.debug("BidCalculator initialized")
@@ -168,10 +170,7 @@ class BidCalculator:
         """
         Baseline bid: greedy nearest-neighbor by distance to pickup.
 
-        Rules:
-        - Only use distance from projected AGV start to pickup
-        - Exclude pickup->delivery leg from scoring
-        - Ignore battery penalty except hard rejection when battery < 10%
+        Pure distance-based bidding with NO queue awareness or energy consideration.
 
         Args:
             agv: AGV instance
@@ -182,11 +181,11 @@ class BidCalculator:
                 'bid_final': float,
                 'distance_to_pickup_m': float,
                 'battery': float,
-                'start_node': str,
+                'current_node': str,
                 'is_valid': bool,
             }
         """
-        return self.greedy_strategy.calculate_bid(agv, pickup_node_id)
+        return self.greedy_distance_strategy.calculate_bid(agv, pickup_node_id)
 
     def calculate_greedy_eta_bid(
         self,
@@ -195,8 +194,12 @@ class BidCalculator:
         delivery_node_id=None,
         load_kg=DEFAULT_LOAD_KG,
     ):
-        """Baseline bid: greedy by projected completion time (ETA)."""
-        return self.greedy_strategy.calculate_eta_bid(
+        """
+        Baseline bid: greedy by projected completion time (ETA).
+        
+        Time-based bidding considering queue time but NO energy or battery penalties.
+        """
+        return self.greedy_eta_strategy.calculate_eta_bid(
             agv,
             pickup_node_id,
             delivery_node_id=delivery_node_id,

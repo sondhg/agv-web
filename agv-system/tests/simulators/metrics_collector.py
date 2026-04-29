@@ -22,6 +22,7 @@ from typing import Optional
 import paho.mqtt.client as mqtt
 
 from config_sim import MQTT_BROKER, MQTT_PORT, MANUFACTURER
+from config_energy import ENERGY
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,11 @@ class MetricsCollector:
         self.agv_task_count: dict[str, int] = defaultdict(int)
         self.agv_total_flow_time: dict[str, float] = defaultdict(float)
         self.agv_total_energy: dict[str, float] = defaultdict(float)
+        # Energy in kJ (converted from percent)
+        self.agv_total_energy_kj: dict[str, float] = defaultdict(float)
         self.agv_total_distance: dict[str, float] = defaultdict(float)
+        # Deadheading (empty travel) distance per AGV
+        self.agv_total_deadhead_distance: dict[str, float] = defaultdict(float)
         self.agv_total_wait_time: dict[str, float] = defaultdict(float)
         self.agv_battery_history: dict[str, list] = defaultdict(list)
 
@@ -109,6 +114,13 @@ class MetricsCollector:
         with self._lock:
             is_transport = order_id in self.transport_order_ids
             record = dict(metrics)
+            # Ensure we have kJ representation for energy
+            if "energy_consumed_kj" in metrics:
+                energy_kj = float(metrics.get("energy_consumed_kj", 0.0))
+            else:
+                energy_kj = ENERGY.percent_to_kj(metrics.get("energy_consumed_pct", 0.0))
+            record["energy_consumed_kj"] = round(energy_kj, 3)
+
             record["order_type"] = "transport" if is_transport else "auxiliary"
             record.setdefault("permission_wait_time_s", round(metrics.get("wait_time_s", 0), 2))
             self.order_records.append(record)
@@ -117,7 +129,9 @@ class MetricsCollector:
                 self.agv_task_count[agv] += 1
                 self.agv_total_flow_time[agv] += metrics.get("flow_time_s", 0)
                 self.agv_total_energy[agv] += metrics.get("energy_consumed_pct", 0)
+                self.agv_total_energy_kj[agv] += energy_kj
                 self.agv_total_distance[agv] += metrics.get("distance_m", 0)
+                self.agv_total_deadhead_distance[agv] += metrics.get("deadhead_distance_m", 0)
                 self.agv_total_wait_time[agv] += metrics.get("wait_time_s", 0)
                 self.agv_total_permission_wait_time[agv] += metrics.get("permission_wait_time_s", metrics.get("wait_time_s", 0))
                 self._last_order_completed = time.time()
@@ -304,7 +318,9 @@ class MetricsCollector:
             "order_type",
             "flow_time_s",
             "energy_consumed_pct",
+            "energy_consumed_kj",
             "distance_m",
+            "deadhead_distance_m",
             "wait_time_s",
             "permission_wait_time_s",
             "move_time_s",
@@ -332,11 +348,14 @@ class MetricsCollector:
             "tasks_completed",
             "total_flow_time_s",
             "total_energy_pct",
+            "total_energy_kj",
             "total_distance_m",
+            "total_deadhead_m",
             "total_wait_time_s",
             "total_permission_wait_time_s",
             "avg_flow_time_s",
             "avg_energy_pct",
+            "avg_energy_kj",
         ]
 
         all_agvs = sorted(
@@ -355,6 +374,8 @@ class MetricsCollector:
                         "tasks_completed": count,
                         "total_flow_time_s": round(self.agv_total_flow_time.get(agv, 0), 2),
                         "total_energy_pct": round(self.agv_total_energy.get(agv, 0), 3),
+                        "total_energy_kj": round(self.agv_total_energy_kj.get(agv, 0), 3),
+                        "total_deadhead_m": round(self.agv_total_deadhead_distance.get(agv, 0), 2),
                         "total_distance_m": round(self.agv_total_distance.get(agv, 0), 2),
                         "total_wait_time_s": round(self.agv_total_wait_time.get(agv, 0), 2),
                         "total_permission_wait_time_s": round(self.agv_total_permission_wait_time.get(agv, 0), 2),
@@ -363,6 +384,9 @@ class MetricsCollector:
                         ),
                         "avg_energy_pct": round(
                             self.agv_total_energy.get(agv, 0) / max(count, 1), 3
+                        ),
+                        "avg_energy_kj": round(
+                            self.agv_total_energy_kj.get(agv, 0) / max(count, 1), 3
                         ),
                     }
                 )
@@ -447,6 +471,7 @@ class MetricsCollector:
         total_tasks = sum(self.agv_task_count.values())
         total_flow_time = sum(self.agv_total_flow_time.values())
         total_energy = sum(self.agv_total_energy.values())
+        total_energy_kj = sum(self.agv_total_energy_kj.values())
         total_distance = sum(self.agv_total_distance.values())
         total_wait = sum(self.agv_total_wait_time.values())
 
@@ -505,6 +530,7 @@ class MetricsCollector:
             writer.writerow(["total_energy_consumed_pct", round(total_energy, 3)])
             writer.writerow(["energy_per_task_pct", round(energy_per_task, 3)])
             writer.writerow(["total_distance_m", round(total_distance, 2)])
+            writer.writerow(["total_energy_consumed_kj", round(sum(self.agv_total_energy_kj.values()), 3)])
             # --- Load Balance & Robustness ---
             writer.writerow(["cv_distance", round(cv_distance, 4)])
             writer.writerow(["stuck_event_count", self.stuck_event_count])
@@ -526,6 +552,7 @@ class MetricsCollector:
         total_tasks = sum(self.agv_task_count.values())
         total_flow = sum(self.agv_total_flow_time.values())
         total_energy = sum(self.agv_total_energy.values())
+        total_energy_kj = sum(self.agv_total_energy_kj.values())
         total_wait = sum(self.agv_total_wait_time.values())
         total_permission_wait = sum(self.agv_total_permission_wait_time.values())
 
@@ -550,8 +577,9 @@ class MetricsCollector:
 
         # 2. Energy
         print(f"  [Energy]")
-        print(f"    Total Energy:       {total_energy:.3f}%")
-        print(f"    Energy/Task:        {total_energy / max(total_tasks, 1):.3f}%")
+        print(f"    Total Energy:       {total_energy:.3f}% ({total_energy_kj:.1f} kJ)")
+        print(f"    Energy/Task:        {total_energy / max(total_tasks, 1):.3f}% ({(total_energy_kj / max(total_tasks,1)):.2f} kJ/task)")
+        print(f"    Avg Energy/AGV:     {(total_energy_kj / max(len(self.agv_task_count),1)):.2f} kJ/AGV")
 
         # 3. Algorithm Overhead
         if self.bidding_times_ms:
@@ -571,6 +599,7 @@ class MetricsCollector:
                 f"  {agv:<10} {cnt:>6} "
                 f"{self.agv_total_flow_time.get(agv, 0):>9.1f}s "
                 f"{self.agv_total_energy.get(agv, 0):>7.2f}% "
+                f"{self.agv_total_energy_kj.get(agv, 0):>10.1f}kJ "
                 f"{self.agv_total_distance.get(agv, 0):>9.1f}m "
                 f"{self.agv_total_wait_time.get(agv, 0):>7.1f}s"
             )

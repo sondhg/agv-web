@@ -20,7 +20,7 @@ Mục tiêu nghiên cứu:
 
 Thành phần chính:
 - Queue-aware: xét hàng đợi task đang chờ trên AGV.
-- Two-leg aware: xét cả chặng start -> pickup và pickup -> delivery.
+- Queue-aware nhẹ: ước lượng queue theo độ dài hàng đợi, không mô phỏng backlog đầy đủ.
 - Energy-time tradeoff: cân bằng năng lượng và thời gian.
 - Fairness-aware: giảm hiện tượng một AGV bị dồn tải quá mức.
 - Constraint-aware: ràng buộc pin, lock khi charging, conflict penalty.
@@ -36,6 +36,10 @@ Dạng mục tiêu (mức khái quát):
 Hàm điểm baseline:
 
 bid_greedy_eta = queue_time + time(start -> pickup) + time(pickup -> delivery)
+
+Phiên bản hiện tại còn đơn giản hơn:
+
+bid_greedy_eta = estimated_queue_delay + time(current_node -> pickup)
 
 Đặc điểm:
 - Có xét queue hiện tại của AGV.
@@ -103,7 +107,7 @@ Các chỉ số nên đưa vào bài báo:
 |---|---|---|
 | Mục tiêu | Đa mục tiêu (energy + time + fairness) | Đơn mục tiêu (ETA) |
 | Xét hàng đợi | Có | Có |
-| Xét 2 chặng pickup-delivery | Có | Có |
+| Xét 2 chặng pickup-delivery | Có | Không |
 | Xử lý pin/charging constraints | Có | Có |
 | Chống dồn tải 1 AGV | Tốt (MiniMax + penalty) | Trung bình/yếu |
 | Ổn định khi tắc nghẽn | Tốt hơn | Dễ cục bộ hóa |
@@ -156,4 +160,4 @@ Các chỉ số nên đưa vào bài báo:
 ---
 
 ## 8. Kết luận ngắn gợi ý dùng trong slide
-GREEDY_ETA là baseline mạnh và công bằng để so sánh vì đã xét queue và 2-chặng vận chuyển. Tuy nhiên, SSI_MARGINAL vượt trội ở tối ưu hệ thống dài hạn nhờ objective đa mục tiêu và cơ chế fairness/conflict-aware, từ đó cải thiện đồng thời hiệu năng, độ ổn định và cân bằng tải trong môi trường AGV nhiều tác nhân.
+GREEDY_ETA là baseline time-based đơn giản hơn SSI vì chỉ ước lượng queue theo độ dài hàng đợi và chỉ tối ưu chặng đến pickup. Tuy nhiên, SSI_MARGINAL vẫn vượt trội ở tối ưu hệ thống dài hạn nhờ objective đa mục tiêu và cơ chế fairness/conflict-aware, từ đó cải thiện đồng thời hiệu năng, độ ổn định và cân bằng tải trong môi trường AGV nhiều tác nhân.
