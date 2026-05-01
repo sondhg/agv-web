@@ -22,7 +22,13 @@ export async function fetchAgvs(): Promise<Agv[]> {
     throw new Error(`Failed to fetch AGVs: ${response.statusText}`)
   }
 
-  return response.json()
+  const data: Agv[] = await response.json()
+  return data.sort((a, b) =>
+    a.serial_number.localeCompare(b.serial_number, undefined, {
+      numeric: true,
+      sensitivity: "base",
+    })
+  )
 }
 
 /**
