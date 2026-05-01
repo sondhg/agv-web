@@ -29,7 +29,13 @@ export default function FleetDashboardPage() {
   const [detailsModalOpen, setDetailsModalOpen] = useState(false)
 
   // Use MQTT Telemetry instead of HTTP polling
-  const { agvStates, agvConnections, isConnected, setInitialStates, setInitialConnections } = useMqttTelemetry()
+  const {
+    agvStates,
+    agvConnections,
+    isConnected,
+    setInitialStates,
+    setInitialConnections,
+  } = useMqttTelemetry()
 
   // Only load statically once
   useEffect(() => {
@@ -49,13 +55,15 @@ export default function FleetDashboardPage() {
 
         // 2. Fetch latest state for each AGV just once on initial load
         // so we don't have blank cards while waiting for the first MQTT message
-        const statesMap: Record<string, import("@/lib/api").AGVState | null> = {}
+        const statesMap: Record<string, import("@/lib/api").AGVState | null> =
+          {}
 
         await Promise.all(
           agvsData.map(async (agv) => {
             try {
               const states = await fetchAgvStates(agv.serial_number)
-              statesMap[agv.serial_number] = states.length > 0 ? states[0] : null
+              statesMap[agv.serial_number] =
+                states.length > 0 ? states[0] : null
             } catch (e) {
               console.warn(
                 `Failed to fetch initial state for AGV ${agv.serial_number}`,
@@ -72,7 +80,9 @@ export default function FleetDashboardPage() {
       } catch (err) {
         console.error("Failed to load initial fleet data:", err)
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Failed to load fleet data")
+          setError(
+            err instanceof Error ? err.message : "Failed to load fleet data"
+          )
         }
       } finally {
         if (mounted) setLoading(false)
@@ -101,7 +111,9 @@ export default function FleetDashboardPage() {
         setError(null)
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to refresh fleet data")
+        setError(
+          err instanceof Error ? err.message : "Failed to refresh fleet data"
+        )
       })
       .finally(() => {
         setLoading(false)
@@ -109,7 +121,9 @@ export default function FleetDashboardPage() {
   }
 
   // Calculate some overview stats using real-time data
-  const onlineAgvsCount = agvs.filter((a) => agvConnections[a.serial_number] ?? a.is_online).length
+  const onlineAgvsCount = agvs.filter(
+    (a) => agvConnections[a.serial_number] ?? a.is_online
+  ).length
   const drivingAgvsCount = Object.values(agvStates).filter(
     (s) => s?.driving
   ).length
@@ -139,16 +153,29 @@ export default function FleetDashboardPage() {
         </div>
         <div className="flex items-center space-x-4">
           {isConnected ? (
-            <Badge variant="outline" className="bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border-green-200">
+            <Badge
+              variant="outline"
+              className="border-green-200 bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400"
+            >
               <Wifi className="mr-1 h-3 w-3" /> Live
             </Badge>
           ) : (
-            <Badge variant="outline" className="bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200">
+            <Badge
+              variant="outline"
+              className="border-red-200 bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400"
+            >
               <WifiOff className="mr-1 h-3 w-3" /> Disconnected
             </Badge>
           )}
-          <Button onClick={handleManualRefresh} variant="outline" size="sm" disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <Button
+            onClick={handleManualRefresh}
+            variant="outline"
+            size="sm"
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
         </div>
@@ -222,11 +249,12 @@ export default function FleetDashboardPage() {
             } else if (agv.last_seen) {
               const timeSinceLastSeen = Math.floor(
                 (new Date().getTime() - new Date(agv.last_seen).getTime()) /
-                1000
+                  1000
               )
-              lastSeenText = timeSinceLastSeen < 60
-                ? `${timeSinceLastSeen}s ago`
-                : `${Math.floor(timeSinceLastSeen / 60)}m ago`
+              lastSeenText =
+                timeSinceLastSeen < 60
+                  ? `${timeSinceLastSeen}s ago`
+                  : `${Math.floor(timeSinceLastSeen / 60)}m ago`
             }
 
             return (
@@ -254,9 +282,9 @@ export default function FleetDashboardPage() {
                     <span className="text-xs text-muted-foreground">
                       {isOnline ? (
                         <span className="flex items-center text-green-600 dark:text-green-500">
-                          <span className="mr-1 relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                          <span className="relative mr-1 flex h-2 w-2">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
                           </span>
                           Live
                         </span>
