@@ -12,7 +12,7 @@ A comprehensive AGV fleet management system implementing the VDA5050 standard fo
 
 ## 📂 Project Structure
 
-```
+```sh
 agv_project/
 ├── backend/                 # Django application
 │   ├── server/              # Django project settings
@@ -49,36 +49,43 @@ agv_project/
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Docker & Docker Compose
-- Python 3.10+ (for mock AGV)
+- Python 3.10+ (for mock AGV testing)
 
-### Installation
+### Running the Backend with Docker
 
-1. Clone the repository:
+1. Open your terminal and navigate to the backend directory (if not already there):
+
 ```bash
-git clone https://github.com/means19/agv-system.git
 cd agv-system
 ```
 
-2. Start all services:
+1. Start all backend services in the background:
+
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-3. Run database migrations:
+1. (First time only) Run database migrations:
+
 ```bash
-docker-compose exec web python manage.py migrate
+docker compose exec web python manage.py migrate
 ```
 
-4. Create superuser:
+1. (Optional) Create an admin user:
+
 ```bash
-docker-compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py createsuperuser
 ```
 
-5. Access the system:
-- API: http://localhost:8000/api/
-- Admin: http://localhost:8000/admin/
-- MQTT Broker: localhost:1884
+1. The backend is now ready! You can access:
+
+- **API Endpoints**: <http://localhost:8000/api/>
+- **Admin Panel**: <http://localhost:8000/admin/>
+- **MQTT Broker**: localhost:1884
+
+*Note: To stop the backend services at any time, run `docker compose down`.*
 
 ### Testing with Mock AGV
 
@@ -116,6 +123,7 @@ python mock_agv.py
 ## 📝 Development
 
 ### Technology Stack
+
 - Django 4.2+
 - Django REST Framework 3.14+
 - PostgreSQL 15
