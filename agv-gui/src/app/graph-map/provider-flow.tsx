@@ -24,9 +24,7 @@ import {
   useNodesState,
   useReactFlow,
   type Edge,
-  type EdgeChange,
   type Node,
-  type NodeChange,
   type OnConnect,
   type OnConnectEnd,
 } from "@xyflow/react"
@@ -35,9 +33,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import Sidebar from "./sidebar"
 
 const MAP_ID = "map_1"
-
-// Protected nodes that cannot be deleted
-const PROTECTED_NODE_IDS = ["Node 1", "Node 2"]
 
 // Helper function to convert backend GraphNode to ReactFlow Node
 function graphNodeToReactFlowNode(graphNode: GraphNode): Node {
@@ -76,31 +71,6 @@ const nodeDefaults = {
   },
 }
 
-const initialNodes: Node[] = [
-  {
-    id: "Node 1",
-    data: { label: `Node 1` },
-    position: { x: 0, y: 0 },
-    ...nodeDefaults,
-  },
-  {
-    id: "Node 2",
-    data: { label: `Node 2` },
-    position: { x: 100, y: 0 },
-    ...nodeDefaults,
-  },
-]
-
-const initialEdges: Edge[] = [
-  {
-    id: "eNode 1-Node 2",
-    source: "Node 1",
-    target: "Node 2",
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-    },
-  },
-]
 const nodeOrigin: [number, number] = [0.5, 0]
 
 // Helper function to renumber nodes to maintain consecutive IDs
@@ -143,8 +113,8 @@ function renumberNodes(
 const AddNodeOnEdgeDrop = () => {
   const reactFlowWrapper = useRef(null)
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>(initialNodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(initialEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([])
   const [originalNodes, setOriginalNodes] = useState<Node[]>([])
   const [originalEdges, setOriginalEdges] = useState<Edge[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -170,6 +140,7 @@ const AddNodeOnEdgeDrop = () => {
         setEdges(renumberedEdges)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes.length, isLoading])
 
   // Track changes whenever nodes or edges change
@@ -181,11 +152,13 @@ const AddNodeOnEdgeDrop = () => {
         JSON.stringify(edges) !== JSON.stringify(originalEdges)
       setHasChanges(nodesChanged || edgesChanged)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, originalNodes, originalEdges, isLoading])
 
   // Load graph data from backend on mount
   useEffect(() => {
     loadGraphFromBackend()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadGraphFromBackend = async () => {
@@ -205,19 +178,17 @@ const AddNodeOnEdgeDrop = () => {
         setOriginalNodes(reactFlowNodes)
         setOriginalEdges(reactFlowEdges)
       } else {
-        // Backend is empty - show initial nodes but don't set as "original"
-        // This way, they will be detected as new nodes that need to be saved
-        setNodes(initialNodes)
-        setEdges(initialEdges)
-        setOriginalNodes([]) // Keep empty so initial nodes are detected as new
-        setOriginalEdges([]) // Keep empty so initial edge is detected as new
+        // Backend is empty
+        setNodes([])
+        setEdges([])
+        setOriginalNodes([])
+        setOriginalEdges([])
       }
     } catch (err) {
       console.error("Failed to load graph:", err)
-      setError("Failed to load graph from backend. Using default nodes.")
-      // Use default nodes if loading fails, but mark them as needing to be saved
-      setNodes(initialNodes)
-      setEdges(initialEdges)
+      setError("Failed to load graph from backend.")
+      setNodes([])
+      setEdges([])
       setOriginalNodes([])
       setOriginalEdges([])
     } finally {
@@ -238,7 +209,7 @@ const AddNodeOnEdgeDrop = () => {
           eds
         )
       ),
-    []
+    [setEdges]
   )
 
   const onConnectEnd: OnConnectEnd = useCallback(
@@ -278,43 +249,38 @@ const AddNodeOnEdgeDrop = () => {
     [screenToFlowPosition, setNodes, setEdges]
   )
 
-  // Override node deletion to protect Node 1 and Node 2
-  const customOnNodesChange = useCallback(
-    (changes: NodeChange<Node>[]) => {
-      const filteredChanges = changes.filter((change) => {
-        if (change.type === "remove") {
-          if (PROTECTED_NODE_IDS.includes(change.id)) {
-            alert(`${change.id} cannot be deleted.`)
-            return false
-          }
-        }
-        return true
-      })
-      onNodesChange(filteredChanges)
-    },
-    [onNodesChange]
-  )
+  const handleAddNode = useCallback(() => {
+    const tempId = `Node ${Date.now()}`
+    const position = screenToFlowPosition({
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    })
+    const newNode: Node = {
+      id: tempId,
+      position,
+      data: { label: tempId },
+      origin: [0.5, 0.0] as [number, number],
+      ...nodeDefaults,
+    }
+    setNodes((nds) => nds.concat(newNode))
+  }, [screenToFlowPosition, setNodes])
 
-  // Override edge deletion to protect the edge between Node 1 and Node 2
-  const customOnEdgesChange = useCallback(
-    (changes: EdgeChange<Edge>[]) => {
-      const filteredChanges = changes.filter((change) => {
-        if (change.type === "remove") {
-          const edge = edges.find((e) => e.id === change.id)
-          if (
-            edge &&
-            PROTECTED_NODE_IDS.includes(edge.source) &&
-            PROTECTED_NODE_IDS.includes(edge.target)
-          ) {
-            alert("The edge between Node 1 and Node 2 cannot be deleted.")
-            return false
-          }
-        }
-        return true
-      })
-      onEdgesChange(filteredChanges)
+  const onPaneDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      const tempId = `Node ${Date.now()}`
+      const newNode: Node = {
+        id: tempId,
+        position: screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        }),
+        data: { label: tempId },
+        origin: [0.5, 0.0] as [number, number],
+        ...nodeDefaults,
+      }
+      setNodes((nds) => nds.concat(newNode))
     },
-    [onEdgesChange, edges]
+    [screenToFlowPosition, setNodes]
   )
 
   const handleSave = async () => {
@@ -500,10 +466,11 @@ const AddNodeOnEdgeDrop = () => {
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          onNodesChange={customOnNodesChange}
-          onEdgesChange={customOnEdgesChange}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
+          onPaneDoubleClick={onPaneDoubleClick}
           fitView
           fitViewOptions={{ padding: 2 }}
           nodeOrigin={nodeOrigin}
@@ -512,6 +479,14 @@ const AddNodeOnEdgeDrop = () => {
           <Panel position="top-left">
             <div className="space-y-2 rounded-lg border bg-white p-4 shadow-md">
               <div className="flex gap-2">
+                <Button
+                  onClick={handleAddNode}
+                  disabled={isLoading}
+                  variant="secondary"
+                  size="sm"
+                >
+                  Add Node
+                </Button>
                 <Button
                   onClick={handleSave}
                   disabled={!hasChanges || isSaving || isLoading}
