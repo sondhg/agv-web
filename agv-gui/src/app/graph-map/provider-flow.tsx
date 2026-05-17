@@ -439,7 +439,9 @@ const AddNodeOnEdgeDrop = () => {
       setError(
         err instanceof Error ? err.message : "Failed to save graph changes"
       )
-      toast.error("Failed to save graph. Check console for details.", { position: "top-right" })
+      toast.error("Failed to save graph. Check console for details.", {
+        position: "top-right",
+      })
     } finally {
       setIsSaving(false)
     }

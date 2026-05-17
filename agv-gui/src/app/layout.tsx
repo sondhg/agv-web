@@ -1,6 +1,7 @@
-import { Outlet, useRouterState } from "@tanstack/react-router"
+import { Outlet, useRouterState, useNavigate } from "@tanstack/react-router"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { CommandMenu } from "@/components/command-menu"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,8 +28,13 @@ const routeToBreadcrumb: Record<string, string> = {
 
 export default function Layout() {
   const routerState = useRouterState()
+  const navigate = useNavigate()
   const currentPath = routerState.location.pathname
   const breadcrumbTitle = routeToBreadcrumb[currentPath] || "Dashboard"
+
+  const handleNavigate = (path: string) => {
+    navigate({ to: path as any })
+  }
 
   return (
     <SidebarProvider>
@@ -53,13 +59,14 @@ export default function Layout() {
           </Breadcrumb>
           <div className="ml-auto font-mono text-xs text-muted-foreground">
             (Press <kbd>d</kbd> to toggle dark mode, <kbd>Ctrl+B</kbd> to toggle
-            sidebar)
+            sidebar, <kbd>Ctrl+K</kbd> to search)
           </div>
         </header>
         <main className="px-4">
           <Outlet />
         </main>
       </SidebarInset>
+      <CommandMenu onNavigate={handleNavigate} />
     </SidebarProvider>
   )
 }
