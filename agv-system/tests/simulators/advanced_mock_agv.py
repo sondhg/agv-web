@@ -127,10 +127,14 @@ class AdvancedMockAGV:
         self._client.on_message = self._on_message
 
         # Topics
-        self._topic_conn = f"uagv/v2/{self.manufacturer}/{self.serial_number}/connection"
+        self._topic_conn = (
+            f"uagv/v2/{self.manufacturer}/{self.serial_number}/connection"
+        )
         self._topic_state = f"uagv/v2/{self.manufacturer}/{self.serial_number}/state"
         self._topic_order = f"uagv/v2/{self.manufacturer}/{self.serial_number}/order"
-        self._topic_action = f"uagv/v2/{self.manufacturer}/{self.serial_number}/instantActions"
+        self._topic_action = (
+            f"uagv/v2/{self.manufacturer}/{self.serial_number}/instantActions"
+        )
 
         # Threading
         self._running = False
@@ -221,7 +225,9 @@ class AdvancedMockAGV:
                     self.op_state = self.STATE_PAUSED
                 elif action_type == "stopPause":
                     self.paused = False
-                    if self.order_nodes and self.current_node_index < len(self.order_nodes):
+                    if self.order_nodes and self.current_node_index < len(
+                        self.order_nodes
+                    ):
                         self.driving = True
                         self.op_state = self.STATE_MOVING
                     else:
@@ -324,7 +330,9 @@ class AdvancedMockAGV:
         else:
             # carrying load: accumulate loaded distance and weighted sum
             self._total_loaded_distance += step
-            self._loaded_distance_weighted += step * float(getattr(self, "_current_load_weight_kg", 0.0))
+            self._loaded_distance_weighted += step * float(
+                getattr(self, "_current_load_weight_kg", 0.0)
+            )
 
         # Check battery
         if self.battery <= 0:
@@ -346,8 +354,12 @@ class AdvancedMockAGV:
         else:
             # Interpolate position linearly from start to target
             ratio = self._move_progress / self._move_distance
-            self.x = self._move_start_x + (self._move_target_x - self._move_start_x) * ratio
-            self.y = self._move_start_y + (self._move_target_y - self._move_start_y) * ratio
+            self.x = (
+                self._move_start_x + (self._move_target_x - self._move_start_x) * ratio
+            )
+            self.y = (
+                self._move_start_y + (self._move_target_y - self._move_start_y) * ratio
+            )
 
     def _arrive_at_node(self, node: dict):
         """Handle arrival at a node."""
@@ -391,7 +403,9 @@ class AdvancedMockAGV:
                 weight = weight or 50
                 self.current_load = {"type": "package", "weight": weight}
                 self._current_load_weight_kg = float(weight)
-                logger.info(f"[{self.serial_number}] Picked up load (weight={weight}kg)")
+                logger.info(
+                    f"[{self.serial_number}] Picked up load (weight={weight}kg)"
+                )
             elif action_type == "drop":
                 self.current_load = None
                 self._current_load_weight_kg = 0.0
@@ -411,15 +425,29 @@ class AdvancedMockAGV:
         # Prefer physics-based energy calc from TransportCalculator when available
         energy_kj_physics = None
         try:
-            from backend.vda5050.modules.bidding.calculators.transport import TransportCalculator
+            from backend.vda5050.modules.bidding.calculators.transport import (
+                TransportCalculator,
+            )
 
             calc = TransportCalculator()
             # Energies: compute loaded and empty segments separately
             loaded_d = self._total_loaded_distance
             dead_d = self._total_deadhead_distance
-            avg_load = (self._loaded_distance_weighted / loaded_d) if loaded_d > 0 else 0.0
-            e_loaded = calc.calculate_energy_consumption(loaded_d, num_turns=0, load_kg=avg_load) if loaded_d > 0 else 0.0
-            e_empty = calc.calculate_energy_consumption(dead_d, num_turns=0, load_kg=0.0) if dead_d > 0 else 0.0
+            avg_load = (
+                (self._loaded_distance_weighted / loaded_d) if loaded_d > 0 else 0.0
+            )
+            e_loaded = (
+                calc.calculate_energy_consumption(
+                    loaded_d, num_turns=0, load_kg=avg_load
+                )
+                if loaded_d > 0
+                else 0.0
+            )
+            e_empty = (
+                calc.calculate_energy_consumption(dead_d, num_turns=0, load_kg=0.0)
+                if dead_d > 0
+                else 0.0
+            )
             energy_kj_physics = e_loaded + e_empty
         except Exception:
             # best-effort import; fall back to percent->kJ below
@@ -440,7 +468,9 @@ class AdvancedMockAGV:
                     "flow_time_s": round(flow_time, 2),
                     "energy_consumed_pct": round(energy_consumed, 3),
                     # If physics calc succeeded, prefer it; otherwise use percent->kJ
-                    "energy_consumed_kj": round(energy_kj_physics, 3) if energy_kj_physics is not None else round(self.energy.percent_to_kj(energy_consumed), 3),
+                    "energy_consumed_kj": round(energy_kj_physics, 3)
+                    if energy_kj_physics is not None
+                    else round(self.energy.percent_to_kj(energy_consumed), 3),
                     "distance_m": round(self._total_distance, 2),
                     "deadhead_distance_m": round(self._total_deadhead_distance, 2),
                     "wait_time_s": round(self._total_wait_time, 2),
@@ -490,9 +520,9 @@ class AdvancedMockAGV:
     def _build_state_message(self) -> dict:
         return {
             "headerId": self._header_counter,
-            "timestamp": datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[
+                :-3
+            ]
             + "Z",
             "version": VDA_VERSION,
             "manufacturer": self.manufacturer,
@@ -538,9 +568,9 @@ class AdvancedMockAGV:
     def _publish_connection(self, status: str):
         payload = {
             "headerId": self._header_counter,
-            "timestamp": datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[
+                :-3
+            ]
             + "Z",
             "version": VDA_VERSION,
             "manufacturer": self.manufacturer,
@@ -581,9 +611,7 @@ class AdvancedMockAGV:
         self._client.loop_start()
 
         # Physics thread (fast tick)
-        self._physics_thread = threading.Thread(
-            target=self._physics_loop, daemon=True
-        )
+        self._physics_thread = threading.Thread(target=self._physics_loop, daemon=True)
         self._physics_thread.start()
 
         # State publishing thread (1 Hz)

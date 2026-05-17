@@ -64,11 +64,11 @@ def generate_continuous_shift_scenario(
         "AGV_08": {"node": "Aisle_S", "battery": 72.0},
         "AGV_09": {"node": "Aisle_N", "battery": 22.0},
     }
-    
+
     tasks = []
     current_delay = 0.0
     burst_index = 0
-    
+
     # Generate bursty arrivals with short gaps between tasks and moderate gaps
     # between bursts to create repeated queue buildup.
     while current_delay < total_seconds:
@@ -84,7 +84,7 @@ def generate_continuous_shift_scenario(
 
         # A short pause between bursts keeps the workload intense but not flat.
         current_delay += rng.randint(10, 18)
-        
+
     return {
         "name": "continuous_shift",
         "description": (
@@ -97,6 +97,7 @@ def generate_continuous_shift_scenario(
         "tasks": tasks,
         "timeout_s": total_seconds + 300,
     }
+
 
 # Gọi hàm để sinh ra dictionary scenario (ở đây set mặc định là 2 tiếng)
 CONTINUOUS_SHIFT_SEED = int(os.getenv("SIM_SCENARIO_SEED", "42"))
@@ -168,10 +169,14 @@ def generate_continuous_shift_stress_scenario(
             if current_delay >= total_seconds:
                 break
             tasks.append(_make_task(pickup, delivery, delay=current_delay))
-            current_delay += rng.randint(intra_burst_min_s, intra_burst_max_s) * time_scale
+            current_delay += (
+                rng.randint(intra_burst_min_s, intra_burst_max_s) * time_scale
+            )
 
         # Khoang cach giua cac burst de tao nhung dot tranh chap ro rang.
-        current_delay += rng.randint(max(1, burst_interval_s - 5), burst_interval_s + 5) * time_scale
+        current_delay += (
+            rng.randint(max(1, burst_interval_s - 5), burst_interval_s + 5) * time_scale
+        )
 
     return {
         "name": "continuous_shift_stress_30m",

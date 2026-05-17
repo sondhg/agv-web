@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from django.core.management.base import BaseCommand, CommandError
@@ -37,8 +38,9 @@ class Command(BaseCommand):
 
         nodes = list(GraphNode.objects.filter(map_id=map_id).order_by("node_id"))
         edges = list(
-            GraphEdge.objects.filter(map_id=map_id)
-            .select_related("start_node", "end_node")
+            GraphEdge.objects.filter(map_id=map_id).select_related(
+                "start_node", "end_node"
+            )
         )
 
         if not nodes:
@@ -50,9 +52,9 @@ class Command(BaseCommand):
         # Node colors by type
         color_by_type = {
             GraphNode.NodeType.CHARGING: "#1f77b4",  # blue
-            GraphNode.NodeType.PICKUP: "#2ca02c",    # green
+            GraphNode.NodeType.PICKUP: "#2ca02c",  # green
             GraphNode.NodeType.DELIVERY: "#d62728",  # red
-            GraphNode.NodeType.DEFAULT: "#7f7f7f",   # gray
+            GraphNode.NodeType.DEFAULT: "#7f7f7f",  # gray
         }
 
         # Draw figure
@@ -82,7 +84,13 @@ class Command(BaseCommand):
             # Fast edges -> thicker and darker
             width = 1.0 + min(max(e.max_velocity, 0.5), 3.0) * 0.9
             alpha = 0.45 + min(max(e.max_velocity, 0.5), 3.0) * 0.12
-            ax.plot([x1, x2], [y1, y2], color="#4c4c4c", linewidth=width, alpha=min(alpha, 0.9))
+            ax.plot(
+                [x1, x2],
+                [y1, y2],
+                color="#4c4c4c",
+                linewidth=width,
+                alpha=min(alpha, 0.9),
+            )
 
         # Draw nodes by type
         for node_type in [
@@ -129,7 +137,9 @@ class Command(BaseCommand):
         fig.savefig(output_path, dpi=180)
         plt.close(fig)
 
-        self.stdout.write(self.style.SUCCESS(f"Map image saved to: {output_path.resolve()}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Map image saved to: {output_path.resolve()}")
+        )
         self.stdout.write(
             f"Rendered {len(nodes)} nodes and {len(seen_pairs)} unique corridors "
             f"(from {len(edges)} directed edges)."

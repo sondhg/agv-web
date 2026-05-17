@@ -6,13 +6,16 @@ from vda5050.graph_engine import GraphEngine
 from vda5050.modules.reservation import ReservationService
 from vda5050.modules.constant import DEFAULT_LOAD_KG
 
+
 class Scheduler:
     def __init__(self):
         self.graph_engine = GraphEngine()
         self.reservation_service = ReservationService()
 
     @staticmethod
-    def _append_action(node: dict, action_type: str, weight: float | None = None) -> None:
+    def _append_action(
+        node: dict, action_type: str, weight: float | None = None
+    ) -> None:
         action = {
             "actionType": action_type,
             "actionId": f"{action_type}_{int(time.time())}",
@@ -45,7 +48,11 @@ class Scheduler:
             banned_edges=banned_edges,
         )
         if not nodes_leg1:
-            return None, None, f"Path not found from {start_node_id} to {pickup_node_id}"
+            return (
+                None,
+                None,
+                f"Path not found from {start_node_id} to {pickup_node_id}",
+            )
 
         nodes_leg2, edges_leg2 = self.graph_engine.get_path(
             pickup_node_id,
@@ -54,15 +61,21 @@ class Scheduler:
             banned_edges=banned_edges,
         )
         if not nodes_leg2:
-            return None, None, f"Path not found from {pickup_node_id} to {delivery_node_id}"
+            return (
+                None,
+                None,
+                f"Path not found from {pickup_node_id} to {delivery_node_id}",
+            )
 
-        all_nodes, all_edges = self._merge_legs(nodes_leg1, edges_leg1, nodes_leg2, edges_leg2)
+        all_nodes, all_edges = self._merge_legs(
+            nodes_leg1, edges_leg1, nodes_leg2, edges_leg2
+        )
         return all_nodes, all_edges, None
 
     def create_transport_order(self, serial_number, pickup_node_id, delivery_node_id):
         """
         Create transport order for AGV: current -> pickup -> delivery.
-        
+
         Args:
             serial_number: AGV serial number
             pickup_node_id: Node to pick up the load
@@ -72,11 +85,11 @@ class Scheduler:
         try:
             agv = AGV.objects.get(serial_number=serial_number)
             # Get the latest state to know where the AGV is
-            last_state = AGVState.objects.filter(agv=agv).order_by('-timestamp').first()
-            
+            last_state = AGVState.objects.filter(agv=agv).order_by("-timestamp").first()
+
             if not last_state:
                 return {"success": False, "error": "AGV has no position data (State)"}
-            
+
             start_node_id = last_state.last_node_id
 
             if agv.is_charging_locked():
@@ -92,20 +105,26 @@ class Scheduler:
             return {"success": False, "error": "AGV does not exist"}
 
         # 2. Define start node for the order:
-        # Define if the AGV is currently busy with an active order. 
+        # Define if the AGV is currently busy with an active order.
         # If yes, chain the new order to start from the last node of the current order.
-        last_active_order = Order.objects.filter(
-            agv=agv, 
-            status__in=['SENT', 'ACTIVE', 'QUEUED']
-        ).order_by('-created_at').first()
+        last_active_order = (
+            Order.objects.filter(agv=agv, status__in=["SENT", "ACTIVE", "QUEUED"])
+            .order_by("-created_at")
+            .first()
+        )
 
         if last_active_order:
             try:
                 last_actions = (last_active_order.nodes or [])[-1].get("actions", [])
             except (IndexError, AttributeError, TypeError):
-                return {"success": False, "error": "Malformed nodes data in previous order"}
+                return {
+                    "success": False,
+                    "error": "Malformed nodes data in previous order",
+                }
 
-            if any(action.get("actionType") == "startCharging" for action in last_actions):
+            if any(
+                action.get("actionType") == "startCharging" for action in last_actions
+            ):
                 return {
                     "success": False,
                     "error": (
@@ -116,20 +135,25 @@ class Scheduler:
 
             # Chaining: Start from the last node of the current active order instead of current position
             try:
-                start_node_id = last_active_order.nodes[-1]['nodeId']
-                initial_status = 'QUEUED'
-                print(f"Chaining order: Start from {start_node_id} (End of Order {last_active_order.order_id})")
+                start_node_id = last_active_order.nodes[-1]["nodeId"]
+                initial_status = "QUEUED"
+                print(
+                    f"Chaining order: Start from {start_node_id} (End of Order {last_active_order.order_id})"
+                )
             except (IndexError, KeyError, TypeError):
                 # Fallback if the order's nodes data is malformed
-                return {"success": False, "error": "Malformed nodes data in previous order"}
+                return {
+                    "success": False,
+                    "error": "Malformed nodes data in previous order",
+                }
         else:
             # If no active order, start from current position
-            last_state = AGVState.objects.filter(agv=agv).order_by('-timestamp').first()
+            last_state = AGVState.objects.filter(agv=agv).order_by("-timestamp").first()
             if not last_state:
                 return {"success": False, "error": "AGV has no position data (State)"}
-            
+
             start_node_id = last_state.last_node_id
-            initial_status = 'CREATED' 
+            initial_status = "CREATED"
 
         # 3. Calculate path with 2 legs: current -> pickup -> delivery
         all_nodes, all_edges, path_error = self._compute_two_leg_path(
@@ -163,11 +187,13 @@ class Scheduler:
             )
             if path_error:
                 used_horizon_release = True
-                all_nodes, all_edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
-                    nodes=all_nodes,
-                    edges=all_edges,
-                    conflict_node_ids=conflict_result.node_ids,
-                    conflict_edge_ids=conflict_result.edge_ids,
+                all_nodes, all_edges, release_cut_sequence = (
+                    self.reservation_service.apply_horizon_release(
+                        nodes=all_nodes,
+                        edges=all_edges,
+                        conflict_node_ids=conflict_result.node_ids,
+                        conflict_edge_ids=conflict_result.edge_ids,
+                    )
                 )
             else:
                 all_nodes, all_edges = replanned_nodes, replanned_edges
@@ -179,11 +205,13 @@ class Scheduler:
                 )
                 if final_conflict_result.has_conflict:
                     used_horizon_release = True
-                    all_nodes, all_edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
-                        nodes=all_nodes,
-                        edges=all_edges,
-                        conflict_node_ids=final_conflict_result.node_ids,
-                        conflict_edge_ids=final_conflict_result.edge_ids,
+                    all_nodes, all_edges, release_cut_sequence = (
+                        self.reservation_service.apply_horizon_release(
+                            nodes=all_nodes,
+                            edges=all_edges,
+                            conflict_node_ids=final_conflict_result.node_ids,
+                            conflict_edge_ids=final_conflict_result.edge_ids,
+                        )
                     )
 
         # Mark transport phase boundaries for simulator metrics.
@@ -207,20 +235,24 @@ class Scheduler:
             agv=agv,
             status=initial_status,
             nodes=all_nodes,  # Combined path: current -> pickup -> delivery
-            edges=all_edges   # Combined edges
+            edges=all_edges,  # Combined edges
         )
         self.reservation_service.persist_reservations(new_order)
 
-        msg = "Order sent to AGV" if initial_status == 'CREATED' else f"Order added to Queue (Start from {start_node_id})"
+        msg = (
+            "Order sent to AGV"
+            if initial_status == "CREATED"
+            else f"Order added to Queue (Start from {start_node_id})"
+        )
 
         return {
-            "success": True, 
-            "order_id": new_order_id, 
+            "success": True,
+            "order_id": new_order_id,
             "status": initial_status,
             "message": msg,
             "pickup_node": pickup_node_id,
             "delivery_node": delivery_node_id,
-            "path": [n['nodeId'] for n in all_nodes],
+            "path": [n["nodeId"] for n in all_nodes],
             "reservation_conflict_detected": conflict_result.has_conflict,
             "reservation_replan_used": used_replan,
             "reservation_horizon_release_used": used_horizon_release,
@@ -266,26 +298,31 @@ class Scheduler:
                 }
 
         # 2. Calculate path to charging station.
-        nodes, edges = self.graph_engine.get_path(effective_start_node, charging_node_id)
+        nodes, edges = self.graph_engine.get_path(
+            effective_start_node, charging_node_id
+        )
         if not nodes:
             return {
                 "success": False,
                 "error": (
-                    f"Path not found from {effective_start_node} "
-                    f"to {charging_node_id}"
+                    f"Path not found from {effective_start_node} to {charging_node_id}"
                 ),
             }
 
         self.reservation_service.expire_old_reservations()
-        conflict_result = self.reservation_service.detect_conflicts(agv=agv, nodes=nodes, edges=edges)
+        conflict_result = self.reservation_service.detect_conflicts(
+            agv=agv, nodes=nodes, edges=edges
+        )
         used_horizon_release = False
         release_cut_sequence = None
         if conflict_result.has_conflict:
-            nodes, edges, release_cut_sequence = self.reservation_service.apply_horizon_release(
-                nodes=nodes,
-                edges=edges,
-                conflict_node_ids=conflict_result.node_ids,
-                conflict_edge_ids=conflict_result.edge_ids,
+            nodes, edges, release_cut_sequence = (
+                self.reservation_service.apply_horizon_release(
+                    nodes=nodes,
+                    edges=edges,
+                    conflict_node_ids=conflict_result.node_ids,
+                    conflict_edge_ids=conflict_result.edge_ids,
+                )
             )
             used_horizon_release = True
 

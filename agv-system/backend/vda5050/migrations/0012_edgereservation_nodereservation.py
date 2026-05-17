@@ -5,50 +5,154 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0011_rename_vda5050_dea_agv_id_08e273_idx_vda5050_dea_agv_id_86babe_idx_and_more'),
+        (
+            "vda5050",
+            "0011_rename_vda5050_dea_agv_id_08e273_idx_vda5050_dea_agv_id_86babe_idx_and_more",
+        ),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='EdgeReservation',
+            name="EdgeReservation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('edge_id', models.CharField(max_length=200)),
-                ('start_node_id', models.CharField(max_length=100)),
-                ('end_node_id', models.CharField(max_length=100)),
-                ('t_start', models.DateTimeField()),
-                ('t_end', models.DateTimeField()),
-                ('status', models.CharField(choices=[('RESERVED', 'Reserved'), ('RELEASED', 'Released'), ('CANCELLED', 'Cancelled'), ('EXPIRED', 'Expired')], default='RESERVED', max_length=20)),
-                ('details', models.JSONField(default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('agv', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='edge_reservations', to='vda5050.agv')),
-                ('order', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='edge_reservations', to='vda5050.order')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("edge_id", models.CharField(max_length=200)),
+                ("start_node_id", models.CharField(max_length=100)),
+                ("end_node_id", models.CharField(max_length=100)),
+                ("t_start", models.DateTimeField()),
+                ("t_end", models.DateTimeField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("RESERVED", "Reserved"),
+                            ("RELEASED", "Released"),
+                            ("CANCELLED", "Cancelled"),
+                            ("EXPIRED", "Expired"),
+                        ],
+                        default="RESERVED",
+                        max_length=20,
+                    ),
+                ),
+                ("details", models.JSONField(default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "agv",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="edge_reservations",
+                        to="vda5050.agv",
+                    ),
+                ),
+                (
+                    "order",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="edge_reservations",
+                        to="vda5050.order",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['t_start'],
-                'indexes': [models.Index(fields=['edge_id', 'status', 't_start', 't_end'], name='vda5050_edg_edge_id_b8c747_idx'), models.Index(fields=['start_node_id', 'end_node_id', 'status', 't_start'], name='vda5050_edg_start_n_d5dbe9_idx'), models.Index(fields=['agv', 'status', 't_start'], name='vda5050_edg_agv_id_3e5638_idx'), models.Index(fields=['order', 'status'], name='vda5050_edg_order_i_4612ac_idx')],
+                "ordering": ["t_start"],
+                "indexes": [
+                    models.Index(
+                        fields=["edge_id", "status", "t_start", "t_end"],
+                        name="vda5050_edg_edge_id_b8c747_idx",
+                    ),
+                    models.Index(
+                        fields=["start_node_id", "end_node_id", "status", "t_start"],
+                        name="vda5050_edg_start_n_d5dbe9_idx",
+                    ),
+                    models.Index(
+                        fields=["agv", "status", "t_start"],
+                        name="vda5050_edg_agv_id_3e5638_idx",
+                    ),
+                    models.Index(
+                        fields=["order", "status"],
+                        name="vda5050_edg_order_i_4612ac_idx",
+                    ),
+                ],
             },
         ),
         migrations.CreateModel(
-            name='NodeReservation',
+            name="NodeReservation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('node_id', models.CharField(max_length=100)),
-                ('t_start', models.DateTimeField()),
-                ('t_end', models.DateTimeField()),
-                ('status', models.CharField(choices=[('RESERVED', 'Reserved'), ('RELEASED', 'Released'), ('CANCELLED', 'Cancelled'), ('EXPIRED', 'Expired')], default='RESERVED', max_length=20)),
-                ('details', models.JSONField(default=dict)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('agv', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='node_reservations', to='vda5050.agv')),
-                ('order', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='node_reservations', to='vda5050.order')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("node_id", models.CharField(max_length=100)),
+                ("t_start", models.DateTimeField()),
+                ("t_end", models.DateTimeField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("RESERVED", "Reserved"),
+                            ("RELEASED", "Released"),
+                            ("CANCELLED", "Cancelled"),
+                            ("EXPIRED", "Expired"),
+                        ],
+                        default="RESERVED",
+                        max_length=20,
+                    ),
+                ),
+                ("details", models.JSONField(default=dict)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "agv",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="node_reservations",
+                        to="vda5050.agv",
+                    ),
+                ),
+                (
+                    "order",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="node_reservations",
+                        to="vda5050.order",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['t_start'],
-                'indexes': [models.Index(fields=['node_id', 'status', 't_start', 't_end'], name='vda5050_nod_node_id_9b1c72_idx'), models.Index(fields=['agv', 'status', 't_start'], name='vda5050_nod_agv_id_d74f20_idx'), models.Index(fields=['order', 'status'], name='vda5050_nod_order_i_d672a8_idx')],
+                "ordering": ["t_start"],
+                "indexes": [
+                    models.Index(
+                        fields=["node_id", "status", "t_start", "t_end"],
+                        name="vda5050_nod_node_id_9b1c72_idx",
+                    ),
+                    models.Index(
+                        fields=["agv", "status", "t_start"],
+                        name="vda5050_nod_agv_id_d74f20_idx",
+                    ),
+                    models.Index(
+                        fields=["order", "status"],
+                        name="vda5050_nod_order_i_d672a8_idx",
+                    ),
+                ],
             },
         ),
     ]

@@ -18,9 +18,9 @@ MAP_ID = "map_1"
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000/api")
 
 # ==================== Timing ====================
-STATE_PUBLISH_INTERVAL = 1.0    # seconds - VDA5050 recommends 1 Hz
-MOVEMENT_TICK_INTERVAL = 0.1    # seconds - physics simulation step
-STATUS_PRINT_INTERVAL = 10.0    # seconds - fleet status display
+STATE_PUBLISH_INTERVAL = 1.0  # seconds - VDA5050 recommends 1 Hz
+MOVEMENT_TICK_INTERVAL = 0.1  # seconds - physics simulation step
+STATUS_PRINT_INTERVAL = 10.0  # seconds - fleet status display
 
 # ==================== Graph Node Positions ====================
 # Must match backend/vda5050/management/commands/setup_test_graph.py
@@ -80,7 +80,9 @@ MIXED_BATTERY_FLEET = {
 }
 
 
-def generate_fleet(count: int, start_battery: float = 95.0, battery_step: float = 5.0) -> dict:
+def generate_fleet(
+    count: int, start_battery: float = 95.0, battery_step: float = 5.0
+) -> dict:
     """
     Generate a fleet configuration with the specified number of AGVs.
 

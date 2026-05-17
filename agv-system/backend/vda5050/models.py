@@ -86,7 +86,9 @@ class AGV(models.Model):
             Order.OrderStatus.QUEUED,
         ]
 
-        for order in self.orders.filter(status__in=pending_statuses).order_by("created_at"):
+        for order in self.orders.filter(status__in=pending_statuses).order_by(
+            "created_at"
+        ):
             nodes = order.nodes or []
             if not nodes:
                 continue
@@ -479,4 +481,3 @@ class GraphEdge(models.Model):
 
     def __str__(self):
         return f"{self.start_node.node_id} -> {self.end_node.node_id}"
-

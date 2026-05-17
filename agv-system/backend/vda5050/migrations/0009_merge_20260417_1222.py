@@ -4,11 +4,9 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0006_graphnode_node_type_alter_graphedge_length_and_more'),
-        ('vda5050', '0008_alter_graphedge_length'),
+        ("vda5050", "0006_graphnode_node_type_alter_graphedge_length_and_more"),
+        ("vda5050", "0008_alter_graphedge_length"),
     ]
 
-    operations = [
-    ]
+    operations = []

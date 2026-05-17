@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0007_remove_node_type_constraint'),
+        ("vda5050", "0007_remove_node_type_constraint"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='graphedge',
-            name='length',
-            field=models.FloatField(blank=True, help_text='Length of the edge (m) - auto-calculated if not provided', null=True),
+            model_name="graphedge",
+            name="length",
+            field=models.FloatField(
+                blank=True,
+                help_text="Length of the edge (m) - auto-calculated if not provided",
+                null=True,
+            ),
         ),
     ]

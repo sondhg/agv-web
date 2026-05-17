@@ -30,6 +30,7 @@ class EnergyConfig:
     # Battery nominal capacity (for converting % -> energy units)
     # Default: 1.0 kWh (3600 kJ). Adjust to match real AGV battery.
     BATTERY_CAPACITY_KWH: float = 1.0
+
     def calculate_move_energy(self, distance_m: float) -> tuple[float, float]:
         """
         Calculate translational energy cost.

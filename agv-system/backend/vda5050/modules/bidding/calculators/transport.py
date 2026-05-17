@@ -11,10 +11,16 @@ Using a physics-based energy model:
 
 import logging
 from ...constant import (
-    AGV_VELOCITY_MPS, AGV_MASS_KG, ROLLING_FRICTION,
-    ACCELERATION_MPS2, GRAVITY_MPS2, WHEELBASE_M,
-    MOTOR_EFFICIENCY, TURN_TIME_AVG_SEC,
-    FALLBACK_NORM_ENERGY_KJ, FALLBACK_NORM_TFT_SEC
+    AGV_VELOCITY_MPS,
+    AGV_MASS_KG,
+    ROLLING_FRICTION,
+    ACCELERATION_MPS2,
+    GRAVITY_MPS2,
+    WHEELBASE_M,
+    MOTOR_EFFICIENCY,
+    TURN_TIME_AVG_SEC,
+    FALLBACK_NORM_ENERGY_KJ,
+    FALLBACK_NORM_TFT_SEC,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,8 +81,8 @@ class TransportCalculator:
         if distance_m < 0:
             logger.warning(f"Negative distance received: {distance_m}m, returning 0")
             return 0.0
-        if distance_m == float('inf'):
-            return float('inf')
+        if distance_m == float("inf"):
+            return float("inf")
 
         t_trans = distance_m / self.speed_mps
         t_rot = num_turns * self.turn_time_avg
@@ -101,18 +107,18 @@ class TransportCalculator:
         if distance_m < 0:
             logger.warning(f"Negative distance received: {distance_m}m, returning 0")
             return 0.0
-        if distance_m == float('inf'):
-            return float('inf')
+        if distance_m == float("inf"):
+            return float("inf")
 
         p_trans = self._power_translational(load_kg)
         p_rot = self._power_rotational(load_kg)
 
-        t_trans = distance_m / self.speed_mps          # seconds
-        t_rot = num_turns * self.turn_time_avg          # seconds
+        t_trans = distance_m / self.speed_mps  # seconds
+        t_rot = num_turns * self.turn_time_avg  # seconds
 
         e_trans_j = (p_trans / self.motor_efficiency) * t_trans
         e_rot_j = (p_rot / self.motor_efficiency) * t_rot
-        energy_kj = (e_trans_j + e_rot_j) / 1000.0     # J → kJ
+        energy_kj = (e_trans_j + e_rot_j) / 1000.0  # J → kJ
 
         logger.debug(
             f"Energy: P_trans={p_trans:.2f}W, P_rot={p_rot:.2f}W | "
