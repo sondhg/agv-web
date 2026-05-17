@@ -27,13 +27,23 @@ Create a **functional web application** for warehouse operators to:
 ### 3. API Client (`/lib/api.ts`)
 - ✅ AGV management functions
 - ✅ Graph management functions (nodes, edges)
-- ⚠️ **MISSING**: Task, Order, AGV State APIs
+- ✅ Task, Order, AGV State APIs (Phase 1)
+
+### 4. Core Task Assignment System (Phase 1)
+- ✅ Extend API Client with Task & Order APIs
+- ✅ Task Assignment Page (`/tasks/create`)
+- ✅ Order Tracking Page (`/orders`)
+- ✅ Order Details Modal
+
+### 5. Fleet Monitoring (Phase 2)
+- ✅ Fleet Dashboard Page (`/fleet`)
+- ✅ AGV Details Modal
 
 ---
 
 ## 🚀 Implementation Roadmap
 
-### **Phase 1: Core Task Assignment System (CRITICAL)**
+### **Phase 1: Core Task Assignment System (COMPLETED)**
 
 The main value of this project is the **auction-based bidding system**. Operators need to:
 1. See which AGVs are available
@@ -330,7 +340,7 @@ Component: `/agv-gui/src/components/order-details-modal.tsx`
 
 ---
 
-### **Phase 2: Fleet Monitoring (CRITICAL)**
+### **Phase 2: Fleet Monitoring (COMPLETED & ENHANCING)**
 
 Operators need to see AGV status in real-time to verify the system is working.
 
@@ -338,36 +348,32 @@ Operators need to see AGV status in real-time to verify the system is working.
 File: `/agv-gui/src/app/fleet/page.tsx`
 
 **Purpose**: Monitor all AGVs, their status, battery, position, and current tasks.
+*(Completed)*
+
+#### **Task 2.2: Create AGV Details Modal**
+Component: `/agv-gui/src/components/agv-details-modal.tsx`
+
+**Purpose**: Show detailed telemetry for troubleshooting and verification.
+*(Completed)*
+
+#### **Task 2.3: Dashboard Analytics & Charts (NEW)**
+File: `/agv-gui/src/app/dashboard/page.tsx`
+
+**Purpose**: Provide actionable insights and system-wide verification using `recharts` / `shadcn/ui` charts.
 
 **Requirements**:
-1. Display all AGVs in cards/grid
-2. Auto-refresh every 3 seconds
-3. Show for each AGV:
-   - Serial number
-   - Online/Offline status
-   - Battery level (% and visual bar)
-   - Last seen timestamp
-   - Current position (node_id or x,y coordinates)
-   - Current order (if any)
-   - Movement status (driving, paused, idle)
-4. Click AGV card to see detailed telemetry
+1.  **Fleet Operational Status (Donut Chart)**: Show distribution of AGV states (MOVING, IDLE, CHARGING, OFFLINE).
+2.  **Live Battery Levels (Bar Chart)**: Show battery percentage per AGV with color-coded warnings (<20% Red, 20-50% Yellow, >50% Green).
+3.  **Today's Order Status Breakdown (Pie/Bar Chart)**: Group orders by status (COMPLETED, FAILED, REJECTED, etc.) to verify system health.
+4.  **Tasks Distributed per AGV (Vertical Bar Chart)**: Show completed tasks per AGV to verify the load-balancing algorithm.
+5.  **Order Volume Over Time (Line Chart)**: Show order creation/completion trends over the last 24 hours.
 
-**Functionality checklist**:
-- [ ] Fetch AGVs on mount
-- [ ] Auto-refresh every 3s
-- [ ] For each AGV, fetch latest state (`fetchAgvStates()` → take first item)
-- [ ] Display online/offline (check `is_online` field)
-- [ ] Display battery with color:
-  - Red: <20%
-  - Yellow: 20-50%
-  - Green: >50%
-- [ ] Display last_seen timestamp (format: "2 minutes ago")
-- [ ] Display current order_id (from latest state)
-- [ ] Display last_node_id (current position)
-- [ ] Click to open AGV details modal
-
-**UI sketch**:
-```
+**Implementation Steps**:
+- [ ] Add `recharts` dependency to frontend.
+- [ ] Create `GET /api/dashboard/stats/` endpoint in Django backend to aggregate data efficiently.
+- [ ] Update frontend API client (`api.ts`) to fetch dashboard stats.
+- [ ] Implement UI layout using CSS Grid for the charts.
+- [ ] Build and integrate individual chart components.
 ┌─────────────────────────────────────────────────────────────────┐
 │ AGV Fleet Status                       [Auto-refresh: 3s]       │
 ├─────────────────────────────────────────────────────────────────┤
@@ -838,12 +844,13 @@ File: `/agv-gui/src/app/test/page.tsx`
 
 | Phase | Task | Priority | Backend Required | Estimated Time |
 |-------|------|----------|------------------|----------------|
-| **1** | Extend API Client | 🔴 Critical | ✅ Already exists | 1 hour |
-| **1** | Task Creation Page | 🔴 Critical | ✅ Already exists | 2 hours |
-| **1** | Order Tracking Page | 🔴 Critical | ✅ Already exists | 2 hours |
-| **1** | Order Details Modal | 🔴 Critical | ✅ Already exists | 1 hour |
-| **2** | Fleet Dashboard | 🔴 Critical | ✅ Already exists | 3 hours |
-| **2** | AGV Details Modal | 🔴 Critical | ✅ Already exists | 1 hour |
+| **1** | Extend API Client | ✅ Completed | ✅ Already exists | - |
+| **1** | Task Creation Page | ✅ Completed | ✅ Already exists | - |
+| **1** | Order Tracking Page | ✅ Completed | ✅ Already exists | - |
+| **1** | Order Details Modal | ✅ Completed | ✅ Already exists | - |
+| **2** | Fleet Dashboard | ✅ Completed | ✅ Already exists | - |
+| **2** | AGV Details Modal | ✅ Completed | ✅ Already exists | - |
+| **2** | Dashboard Analytics Charts | 🟡 High | ⚠️ **MISSING (/api/dashboard/stats)** | 4 hours |
 | **3** | Fleet Map Visualization | 🟡 High | ✅ Already exists | 4 hours |
 | **3** | Highlight Active Paths | 🟡 High | ✅ Already exists | 2 hours |
 | **4** | Backend: Instant Actions | 🔴 Critical | ⚠️ **MISSING** | 1 hour |
