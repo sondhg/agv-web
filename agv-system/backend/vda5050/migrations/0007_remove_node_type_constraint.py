@@ -4,10 +4,11 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0006_alter_graphedge_length_alter_graphedge_max_velocity_and_more'),
+        (
+            "vda5050",
+            "0006_alter_graphedge_length_alter_graphedge_max_velocity_and_more",
+        ),
     ]
 
-    operations = [
-    ]
+    operations = []

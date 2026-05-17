@@ -6,25 +6,65 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0002_alter_agv_options_agv_current_map_id_agv_description_and_more'),
+        (
+            "vda5050",
+            "0002_alter_agv_options_agv_current_map_id_agv_description_and_more",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='InstantAction',
+            name="InstantAction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('header_id', models.IntegerField(default=0)),
-                ('timestamp', models.DateTimeField(auto_now_add=True)),
-                ('action_type', models.CharField(choices=[('startPause', 'Pause'), ('stopPause', 'Ressume'), ('cancelOrder', 'Cancel')], max_length=50)),
-                ('action_id', models.CharField(help_text='Unique action ID', max_length=100, unique=True)),
-                ('action_parameters', models.JSONField(blank=True, default=list)),
-                ('is_sent', models.BooleanField(default=False)),
-                ('agv', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='instant_actions', to='vda5050.agv')),
-                ('created_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("header_id", models.IntegerField(default=0)),
+                ("timestamp", models.DateTimeField(auto_now_add=True)),
+                (
+                    "action_type",
+                    models.CharField(
+                        choices=[
+                            ("startPause", "Pause"),
+                            ("stopPause", "Ressume"),
+                            ("cancelOrder", "Cancel"),
+                        ],
+                        max_length=50,
+                    ),
+                ),
+                (
+                    "action_id",
+                    models.CharField(
+                        help_text="Unique action ID", max_length=100, unique=True
+                    ),
+                ),
+                ("action_parameters", models.JSONField(blank=True, default=list)),
+                ("is_sent", models.BooleanField(default=False)),
+                (
+                    "agv",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="instant_actions",
+                        to="vda5050.agv",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
     ]

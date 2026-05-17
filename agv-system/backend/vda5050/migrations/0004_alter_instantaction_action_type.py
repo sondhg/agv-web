@@ -4,15 +4,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0003_instantaction'),
+        ("vda5050", "0003_instantaction"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='instantaction',
-            name='action_type',
-            field=models.CharField(choices=[('startPause', 'Pause'), ('stopPause', 'Resume'), ('cancelOrder', 'Cancel')], max_length=50),
+            model_name="instantaction",
+            name="action_type",
+            field=models.CharField(
+                choices=[
+                    ("startPause", "Pause"),
+                    ("stopPause", "Resume"),
+                    ("cancelOrder", "Cancel"),
+                ],
+                max_length=50,
+            ),
         ),
     ]

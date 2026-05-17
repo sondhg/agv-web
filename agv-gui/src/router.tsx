@@ -4,6 +4,8 @@ import {
   createRootRoute,
 } from "@tanstack/react-router"
 
+import { ROUTES } from "@/config/routes"
+
 import GraphMapPage from "@/app/graph-map/page"
 import RegisterAgvsPage from "@/app/register-agvs/page"
 import Layout from "@/app/layout"
@@ -39,67 +41,61 @@ const rootRoute = createRootRoute({
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/",
+  path: ROUTES.HOME,
   component: DashboardPage,
 })
 
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/dashboard",
+  path: ROUTES.DASHBOARD,
   component: DashboardPage,
 })
 
-// const userInputsRoute = createRoute({
-//   getParentRoute: () => rootRoute,
-//   path: "/user-inputs",
-//   component: UserInputsPage,
-// })
-
 const taskBiddingRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/supervise/task-bidding",
+  path: ROUTES.SUPERVISE_TASK_BIDDING,
   component: TaskBiddingPage,
 })
 
 const sensorDataRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/supervise/sensor-data",
+  path: ROUTES.SUPERVISE_SENSOR_DATA,
   component: SensorDataPage,
 })
 
 const routingRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/simulate/routing",
+  path: ROUTES.SIMULATE_ROUTING,
   component: RoutingPage,
 })
 
 const graphMapRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/user-inputs/graph-map",
+  path: ROUTES.USER_INPUTS_GRAPH_MAP,
   component: GraphMapPage,
 })
 
 const registerAgvsRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/user-inputs/register-agvs",
+  path: ROUTES.USER_INPUTS_REGISTER_AGVS,
   component: RegisterAgvsPage,
 })
 
 const createTaskRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/tasks/create",
+  path: ROUTES.TASKS_CREATE,
   component: CreateTaskPage,
 })
 
 const ordersRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/orders",
+  path: ROUTES.ORDERS,
   component: OrdersPage,
 })
 
 const fleetRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/fleet",
+  path: ROUTES.FLEET,
   component: FleetDashboardPage,
 })
 

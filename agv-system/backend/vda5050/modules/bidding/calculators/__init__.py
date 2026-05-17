@@ -7,7 +7,7 @@ from .baseline import BaselineCalculator
 from .bid import BidCalculator
 
 __all__ = [
-    'TransportCalculator',
-    'BaselineCalculator',
-    'BidCalculator',
+    "TransportCalculator",
+    "BaselineCalculator",
+    "BidCalculator",
 ]

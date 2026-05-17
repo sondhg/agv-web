@@ -140,11 +140,11 @@ export default function CreateTaskPage() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select pickup location" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectGroup>
                   <SelectLabel>Select pickup location</SelectLabel>
                   {nodes.map((node) => (
-                    <SelectItem key={node.id} value={node.node_id}>
+                    <SelectItem key={node.id} value={String(node.node_id)}>
                       {node.node_id}
                       {node.description && ` - ${node.description}`}
                     </SelectItem>
@@ -168,11 +168,11 @@ export default function CreateTaskPage() {
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select delivery location" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 <SelectGroup>
                   <SelectLabel>Select delivery location</SelectLabel>
                   {nodes.map((node) => (
-                    <SelectItem key={node.id} value={node.node_id}>
+                    <SelectItem key={node.id} value={String(node.node_id)}>
                       {node.node_id}
                       {node.description && ` - ${node.description}`}
                     </SelectItem>

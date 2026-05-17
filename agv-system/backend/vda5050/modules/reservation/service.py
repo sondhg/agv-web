@@ -49,7 +49,9 @@ class ReservationService:
         except (TypeError, ValueError):
             return default
 
-    def _build_schedule(self, nodes: list[dict], edges: list[dict], start_at=None) -> dict:
+    def _build_schedule(
+        self, nodes: list[dict], edges: list[dict], start_at=None
+    ) -> dict:
         now = start_at or timezone.now()
         schedule_nodes: list[dict] = []
         schedule_edges: list[dict] = []
@@ -86,7 +88,9 @@ class ReservationService:
             max_speed = self._safe_float(edge.get("maxSpeed"), self.fallback_speed_mps)
             travel_window = max(self.min_edge_window_s, 1.0 / max(max_speed, 0.1))
             edge_start = cursor
-            edge_end = edge_start + timedelta(seconds=travel_window + self.reservation_padding_s)
+            edge_end = edge_start + timedelta(
+                seconds=travel_window + self.reservation_padding_s
+            )
 
             schedule_edges.append(
                 {
@@ -117,7 +121,9 @@ class ReservationService:
                 node_id=item["node_id"],
                 status__in=self.ACTIVE_STATUSES,
             ).exclude(agv_id=agv_id)
-            qs = qs.filter(self._overlap_query("t_start", "t_end", item["t_start"], item["t_end"]))
+            qs = qs.filter(
+                self._overlap_query("t_start", "t_end", item["t_start"], item["t_end"])
+            )
 
             reservation = qs.order_by("t_start").first()
             if reservation:
@@ -128,7 +134,9 @@ class ReservationService:
                         "t_start": item["t_start"],
                         "t_end": item["t_end"],
                         "conflict_with_agv": reservation.agv.serial_number,
-                        "conflict_order_id": reservation.order.order_id if reservation.order else None,
+                        "conflict_order_id": reservation.order.order_id
+                        if reservation.order
+                        else None,
                     }
                 )
         return conflicts
@@ -144,7 +152,9 @@ class ReservationService:
                 edge_id=item["edge_id"],
                 status__in=self.EDGE_ACTIVE_STATUSES,
             ).exclude(agv_id=agv_id)
-            qs = qs.filter(self._overlap_query("t_start", "t_end", item["t_start"], item["t_end"]))
+            qs = qs.filter(
+                self._overlap_query("t_start", "t_end", item["t_start"], item["t_end"])
+            )
 
             reservation = qs.order_by("t_start").first()
             if reservation:
@@ -157,7 +167,9 @@ class ReservationService:
                         "t_start": item["t_start"],
                         "t_end": item["t_end"],
                         "conflict_with_agv": reservation.agv.serial_number,
-                        "conflict_order_id": reservation.order.order_id if reservation.order else None,
+                        "conflict_order_id": reservation.order.order_id
+                        if reservation.order
+                        else None,
                     }
                 )
 
@@ -182,14 +194,18 @@ class ReservationService:
                         "t_end": item["t_end"],
                         "conflict_with_agv": reverse_reservation.agv.serial_number,
                         "conflict_order_id": (
-                            reverse_reservation.order.order_id if reverse_reservation.order else None
+                            reverse_reservation.order.order_id
+                            if reverse_reservation.order
+                            else None
                         ),
                         "reason": "head_on_reverse_edge",
                     }
                 )
         return conflicts
 
-    def detect_conflicts(self, agv, nodes: list[dict], edges: list[dict]) -> ConflictResult:
+    def detect_conflicts(
+        self, agv, nodes: list[dict], edges: list[dict]
+    ) -> ConflictResult:
         schedule = self._build_schedule(nodes=nodes, edges=edges)
         node_conflicts = self._build_node_conflicts(schedule["nodes"], agv_id=agv.id)
         edge_conflicts = self._build_edge_conflicts(schedule["edges"], agv_id=agv.id)
@@ -206,7 +222,9 @@ class ReservationService:
         )
 
     def persist_reservations(self, order) -> None:
-        schedule = self._build_schedule(nodes=order.nodes or [], edges=order.edges or [])
+        schedule = self._build_schedule(
+            nodes=order.nodes or [], edges=order.edges or []
+        )
 
         node_rows = [
             NodeReservation(
@@ -245,12 +263,20 @@ class ReservationService:
         NodeReservation.objects.filter(
             order=order,
             status=NodeReservation.Status.RESERVED,
-        ).update(status=NodeReservation.Status.RELEASED, t_end=now, details={"reason": reason})
+        ).update(
+            status=NodeReservation.Status.RELEASED,
+            t_end=now,
+            details={"reason": reason},
+        )
 
         EdgeReservation.objects.filter(
             order=order,
             status=EdgeReservation.Status.RESERVED,
-        ).update(status=EdgeReservation.Status.RELEASED, t_end=now, details={"reason": reason})
+        ).update(
+            status=EdgeReservation.Status.RELEASED,
+            t_end=now,
+            details={"reason": reason},
+        )
 
     def expire_old_reservations(self) -> None:
         now = timezone.now()
@@ -286,9 +312,13 @@ class ReservationService:
         cut_seq = min(sequence_candidates)
         max_sequence = 0
         if nodes:
-            max_sequence = max(max_sequence, max(int(n.get("sequenceId", 0)) for n in nodes))
+            max_sequence = max(
+                max_sequence, max(int(n.get("sequenceId", 0)) for n in nodes)
+            )
         if edges:
-            max_sequence = max(max_sequence, max(int(e.get("sequenceId", 0)) for e in edges))
+            max_sequence = max(
+                max_sequence, max(int(e.get("sequenceId", 0)) for e in edges)
+            )
 
         # Bootstrap release to avoid AGVs being locked at sequence=0 forever.
         bootstrap_release_seq = min(3, max_sequence)
@@ -310,7 +340,9 @@ class ReservationService:
 
         # Ensure at least one edge can be traversed from current node.
         if new_edges and not any(bool(edge.get("released")) for edge in new_edges):
-            first_edge = min(new_edges, key=lambda item: int(item.get("sequenceId", 10**9)))
+            first_edge = min(
+                new_edges, key=lambda item: int(item.get("sequenceId", 10**9))
+            )
             first_edge["released"] = True
             first_edge_seq = int(first_edge.get("sequenceId", 0))
             for node in new_nodes:

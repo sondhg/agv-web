@@ -29,7 +29,9 @@ class Command(BaseCommand):
         self.battery_manager = BatteryManager()
         self._progress_cache = {}
         self._telemetry_cache = {}
-        self._eta_speed_mps = float(os.environ.get("AGV_PROGRESS_ETA_SPEED_MPS", "10.0"))
+        self._eta_speed_mps = float(
+            os.environ.get("AGV_PROGRESS_ETA_SPEED_MPS", "10.0")
+        )
         self._horizon_release_window_seq = int(
             os.environ.get("HORIZON_RELEASE_WINDOW_SEQ", "4")
         )
@@ -433,7 +435,10 @@ class Command(BaseCommand):
         for node in order.nodes:
             node_copy = dict(node)
             node_seq = int(node_copy.get("sequenceId", 0))
-            if not bool(node_copy.get("released", True)) and node_seq <= release_upto_seq:
+            if (
+                not bool(node_copy.get("released", True))
+                and node_seq <= release_upto_seq
+            ):
                 node_copy["released"] = True
                 node_changed = True
             node_updates.append(node_copy)
@@ -443,7 +448,10 @@ class Command(BaseCommand):
         for edge in order.edges:
             edge_copy = dict(edge)
             edge_seq = int(edge_copy.get("sequenceId", 0))
-            if not bool(edge_copy.get("released", True)) and edge_seq <= release_upto_seq:
+            if (
+                not bool(edge_copy.get("released", True))
+                and edge_seq <= release_upto_seq
+            ):
                 edge_copy["released"] = True
                 edge_changed = True
             edge_updates.append(edge_copy)
@@ -474,7 +482,9 @@ class Command(BaseCommand):
         if not final_node or final_node == current_node_id:
             return 0.0
 
-        remaining_distance = self.graph_engine.get_path_cost(current_node_id, final_node)
+        remaining_distance = self.graph_engine.get_path_cost(
+            current_node_id, final_node
+        )
         if remaining_distance == float("inf"):
             return None
 

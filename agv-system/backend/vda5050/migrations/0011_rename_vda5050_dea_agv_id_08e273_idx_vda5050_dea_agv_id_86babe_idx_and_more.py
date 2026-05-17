@@ -4,25 +4,28 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('vda5050', '0010_deadlockevent'),
+        ("vda5050", "0010_deadlockevent"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='deadlockevent',
-            new_name='vda5050_dea_agv_id_86babe_idx',
-            old_name='vda5050_dea_agv_id_08e273_idx',
+            model_name="deadlockevent",
+            new_name="vda5050_dea_agv_id_86babe_idx",
+            old_name="vda5050_dea_agv_id_08e273_idx",
         ),
         migrations.RenameIndex(
-            model_name='deadlockevent',
-            new_name='vda5050_dea_status_e6e778_idx',
-            old_name='vda5050_dea_status_0f5df0_idx',
+            model_name="deadlockevent",
+            new_name="vda5050_dea_status_e6e778_idx",
+            old_name="vda5050_dea_status_0f5df0_idx",
         ),
         migrations.AlterField(
-            model_name='graphedge',
-            name='length',
-            field=models.FloatField(blank=True, help_text='Length of the edge (m) - auto-calculated if not provided', null=True),
+            model_name="graphedge",
+            name="length",
+            field=models.FloatField(
+                blank=True,
+                help_text="Length of the edge (m) - auto-calculated if not provided",
+                null=True,
+            ),
         ),
     ]
