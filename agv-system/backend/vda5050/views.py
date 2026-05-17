@@ -590,3 +590,95 @@ class GraphViewSet(viewsets.ViewSet):
             if not errors
             else status.HTTP_207_MULTI_STATUS,
         )
+
+class DashboardViewSet(viewsets.ViewSet):
+    """
+    API endpoint for dashboard statistics.
+    """
+    @action(detail=False, methods=['get'])
+    def stats(self, request):
+        agvs = AGV.objects.all()
+        orders = Order.objects.all()
+        
+        # 1. Fleet Operational Status
+        # We need to look at the latest state of each AGV to determine moving, idle, charging, offline.
+        # But for now, we can calculate based on operating_mode or driving flag in AGVState, or just from AGV.is_online
+        
+        agv_states = {
+            'MOVING': 0,
+            'IDLE': 0,
+            'CHARGING': 0,
+            'OFFLINE': 0
+        }
+        
+        battery_levels = []
+        tasks_per_agv = {}
+        
+        now = timezone.now()
+        
+        for agv in agvs:
+            latest_state = agv.states.order_by('-timestamp').first()
+            
+            if not agv.is_online or not latest_state:
+                agv_states['OFFLINE'] += 1
+                battery_levels.append({
+                    'name': agv.serial_number,
+                    'battery': 0
+                })
+            else:
+                if latest_state.driving:
+                    agv_states['MOVING'] += 1
+                elif 'charge' in latest_state.operating_mode.lower():
+                    agv_states['CHARGING'] += 1
+                else:
+                    agv_states['IDLE'] += 1
+                    
+                battery_levels.append({
+                    'name': agv.serial_number,
+                    'battery': latest_state.battery_state.get('batteryCharge', 0) if latest_state.battery_state else 0
+                })
+                
+        # Group orders by status
+        today_orders = orders.filter(created_at__date=timezone.now().date())
+        order_status = {}
+        for order in today_orders:
+            order_status[order.status] = order_status.get(order.status, 0) + 1
+            
+        # Format for recharts
+        fleet_status_data = [{'name': k, 'value': v} for k, v in agv_states.items() if v > 0]
+        
+        # Order status breakdown
+        order_status_data = [{'name': k, 'value': v} for k, v in order_status.items() if v > 0]
+        
+        # Completed Tasks per AGV
+        completed_orders = orders.filter(status='COMPLETED')
+        for order in completed_orders:
+            if order.agv:
+                sn = order.agv.serial_number
+                tasks_per_agv[sn] = tasks_per_agv.get(sn, 0) + 1
+                
+        tasks_distributed_data = [{'name': k, 'tasks': v} for k, v in tasks_per_agv.items()]
+        
+        # Order volume over last 24h
+        # Group by hour
+        volume_data = []
+        from django.db.models import Count
+        from django.db.models.functions import TruncHour
+        from datetime import timedelta
+        
+        last_24h = timezone.now() - timedelta(hours=24)
+        orders_24h = orders.filter(created_at__gte=last_24h).annotate(hour=TruncHour('created_at')).values('hour').annotate(count=Count('id')).order_by('hour')
+        
+        for item in orders_24h:
+            volume_data.append({
+                'time': item['hour'].strftime('%H:00'),
+                'orders': item['count']
+            })
+            
+        return Response({
+            'fleet_status': fleet_status_data,
+            'battery_levels': battery_levels,
+            'order_status': order_status_data,
+            'tasks_distributed': tasks_distributed_data,
+            'order_volume': volume_data
+        })

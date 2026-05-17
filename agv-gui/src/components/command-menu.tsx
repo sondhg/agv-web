@@ -43,7 +43,7 @@ export function CommandMenu({ onNavigate }: CommandMenuProps) {
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Navigation">
             <CommandItem onSelect={() => runCommand(ROUTES.DASHBOARD)}>
-              Dashboard
+              Analytics Dashboard
             </CommandItem>
             <CommandItem onSelect={() => runCommand(ROUTES.FLEET)}>
               Fleet Dashboard

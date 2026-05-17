@@ -26,6 +26,16 @@ import {
 const data = {
   navMain: [
     {
+      title: "Dashboard",
+      url: ROUTES.DASHBOARD,
+      items: [
+        {
+          title: "Analytics",
+          url: ROUTES.DASHBOARD,
+        },
+      ],
+    },
+    {
       title: "Fleet",
       url: ROUTES.FLEET,
       items: [
