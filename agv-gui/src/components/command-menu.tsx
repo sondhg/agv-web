@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { ROUTES, type RoutePath } from "@/config/routes"
 
 import {
   Command,
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/command"
 
 interface CommandMenuProps {
-  onNavigate: (path: string) => void
+  onNavigate: (path: RoutePath) => void
 }
 
 export function CommandMenu({ onNavigate }: CommandMenuProps) {
@@ -29,7 +30,7 @@ export function CommandMenu({ onNavigate }: CommandMenuProps) {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
-  const runCommand = (path: string) => {
+  const runCommand = (path: RoutePath) => {
     setOpen(false)
     onNavigate(path)
   }
@@ -41,40 +42,48 @@ export function CommandMenu({ onNavigate }: CommandMenuProps) {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Navigation">
-            <CommandItem onSelect={() => runCommand("/dashboard")}>
+            <CommandItem onSelect={() => runCommand(ROUTES.DASHBOARD)}>
               Dashboard
             </CommandItem>
-            <CommandItem onSelect={() => runCommand("/fleet")}>
+            <CommandItem onSelect={() => runCommand(ROUTES.FLEET)}>
               Fleet Dashboard
             </CommandItem>
-            <CommandItem onSelect={() => runCommand("/orders")}>
+            <CommandItem onSelect={() => runCommand(ROUTES.ORDERS)}>
               Orders
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Supervise">
-            <CommandItem onSelect={() => runCommand("/supervise/task-bidding")}>
+            <CommandItem
+              onSelect={() => runCommand(ROUTES.SUPERVISE_TASK_BIDDING)}
+            >
               Task Bidding
             </CommandItem>
-            <CommandItem onSelect={() => runCommand("/supervise/sensor-data")}>
+            <CommandItem
+              onSelect={() => runCommand(ROUTES.SUPERVISE_SENSOR_DATA)}
+            >
               Sensor Data
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="Simulate & Tasks">
-            <CommandItem onSelect={() => runCommand("/simulate/routing")}>
+            <CommandItem onSelect={() => runCommand(ROUTES.SIMULATE_ROUTING)}>
               Routing
             </CommandItem>
-            <CommandItem onSelect={() => runCommand("/tasks/create")}>
+            <CommandItem onSelect={() => runCommand(ROUTES.TASKS_CREATE)}>
               Create Task
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
           <CommandGroup heading="User Inputs">
-            <CommandItem onSelect={() => runCommand("/user-inputs/graph-map")}>
+            <CommandItem
+              onSelect={() => runCommand(ROUTES.USER_INPUTS_GRAPH_MAP)}
+            >
               Graph Map
             </CommandItem>
-            <CommandItem onSelect={() => runCommand("/user-inputs/register-agvs")}>
+            <CommandItem
+              onSelect={() => runCommand(ROUTES.USER_INPUTS_REGISTER_AGVS)}
+            >
               Register AGVs
             </CommandItem>
           </CommandGroup>

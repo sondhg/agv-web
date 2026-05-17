@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { GalleryVerticalEnd, Minus, Plus } from "lucide-react"
 
 import { SearchForm } from "@/components/search-form"
+import { ROUTES } from "@/config/routes"
 import {
   Collapsible,
   CollapsibleContent,
@@ -26,63 +27,63 @@ const data = {
   navMain: [
     {
       title: "Fleet",
-      url: "/fleet",
+      url: ROUTES.FLEET,
       items: [
         {
           title: "Fleet Dashboard",
-          url: "/fleet",
+          url: ROUTES.FLEET,
         },
       ],
     },
     {
       title: "Tasks & Orders",
-      url: "/tasks",
+      url: "/tasks", // Parent route doesn't have an exact page usually
       items: [
         {
           title: "Create Task",
-          url: "/tasks/create",
+          url: ROUTES.TASKS_CREATE,
         },
         {
           title: "Order Tracking",
-          url: "/orders",
+          url: ROUTES.ORDERS,
         },
       ],
     },
     {
       title: "User Inputs",
-      url: "/user-inputs",
+      url: "/user-inputs", // Parent route
       items: [
         {
           title: "Register AGVs",
-          url: "/user-inputs/register-agvs",
+          url: ROUTES.USER_INPUTS_REGISTER_AGVS,
         },
         {
           title: "Graph Map",
-          url: "/user-inputs/graph-map",
+          url: ROUTES.USER_INPUTS_GRAPH_MAP,
         },
       ],
     },
     {
       title: "Supervise",
-      url: "/supervise/task-bidding",
+      url: ROUTES.SUPERVISE_TASK_BIDDING,
       items: [
         {
           title: "Task Bidding",
-          url: "/supervise/task-bidding",
+          url: ROUTES.SUPERVISE_TASK_BIDDING,
         },
         {
           title: "Sensor Data",
-          url: "/supervise/sensor-data",
+          url: ROUTES.SUPERVISE_SENSOR_DATA,
         },
       ],
     },
     {
       title: "Simulate",
-      url: "/simulate/routing",
+      url: ROUTES.SIMULATE_ROUTING,
       items: [
         {
           title: "Routing",
-          url: "/simulate/routing",
+          url: ROUTES.SIMULATE_ROUTING,
         },
       ],
     },
