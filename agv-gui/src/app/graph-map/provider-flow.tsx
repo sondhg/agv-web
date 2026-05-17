@@ -31,6 +31,7 @@ import {
 import "@xyflow/react/dist/style.css"
 import { useCallback, useEffect, useRef, useState } from "react"
 import Sidebar from "./sidebar"
+import { toast } from "sonner"
 
 const MAP_ID = "map_1"
 
@@ -432,13 +433,13 @@ const AddNodeOnEdgeDrop = () => {
       // Reload graph from backend to get the latest state
       await loadGraphFromBackend()
 
-      alert("Graph saved successfully!")
+      toast.success("Graph saved successfully!", { position: "top-right" })
     } catch (err) {
       console.error("Failed to save graph:", err)
       setError(
         err instanceof Error ? err.message : "Failed to save graph changes"
       )
-      alert("Failed to save graph. Check console for details.")
+      toast.error("Failed to save graph. Check console for details.", { position: "top-right" })
     } finally {
       setIsSaving(false)
     }
