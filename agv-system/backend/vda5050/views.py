@@ -659,6 +659,10 @@ class DashboardViewSet(viewsets.ViewSet):
                 
         tasks_distributed_data = [{'name': k, 'tasks': v} for k, v in tasks_per_agv.items()]
         
+        # Sort data by AGV name for consistent ordering in charts
+        battery_levels.sort(key=lambda x: x['name'])
+        tasks_distributed_data.sort(key=lambda x: x['name'])
+        
         # Order volume over last 24h
         # Group by hour
         volume_data = []
