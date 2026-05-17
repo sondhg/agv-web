@@ -205,9 +205,12 @@ export interface GraphData {
  * Fetch all graph nodes
  */
 export async function fetchGraphNodes(
-  mapId: string = "default_map"
+  mapId?: string
 ): Promise<GraphNode[]> {
-  const response = await fetch(`${API_BASE_URL}/graph/nodes/?map_id=${mapId}`)
+  const url = mapId 
+    ? `${API_BASE_URL}/graph/nodes/?map_id=${mapId}` 
+    : `${API_BASE_URL}/graph/nodes/`
+  const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch graph nodes: ${response.statusText}`)
@@ -220,9 +223,12 @@ export async function fetchGraphNodes(
  * Fetch all graph edges
  */
 export async function fetchGraphEdges(
-  mapId: string = "default_map"
+  mapId?: string
 ): Promise<GraphEdge[]> {
-  const response = await fetch(`${API_BASE_URL}/graph/edges/?map_id=${mapId}`)
+  const url = mapId
+    ? `${API_BASE_URL}/graph/edges/?map_id=${mapId}`
+    : `${API_BASE_URL}/graph/edges/`
+  const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch graph edges: ${response.statusText}`)
@@ -235,7 +241,7 @@ export async function fetchGraphEdges(
  * Fetch complete graph (nodes + edges)
  */
 export async function fetchGraph(
-  mapId: string = "default_map"
+  mapId?: string
 ): Promise<GraphData> {
   const [nodes, edges] = await Promise.all([
     fetchGraphNodes(mapId),
