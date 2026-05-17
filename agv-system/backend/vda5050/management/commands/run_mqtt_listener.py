@@ -536,10 +536,50 @@ class Command(BaseCommand):
             )
             status = payload.get("connectionState")
             agv.is_online = status == "ONLINE"
+            agv.last_seen = timezone.now()
             agv.save()
             logger.info(f"AGV {serial_number} is {status}")
         except AGV.DoesNotExist:
-            pass
+            # Auto-register AGV when it first connects (esp32 plugged in)
+            try:
+                status = payload.get("connectionState")
+                agv = AGV.objects.create(
+                    manufacturer=manufacturer,
+                    serial_number=serial_number,
+                    is_online=(status == "ONLINE"),
+                    description=f'Auto-registered from MQTT connection {manufacturer}/{serial_number}',
+                    protocol_version=payload.get("version") or "2.1.0",
+                )
+
+                # Create an initial AGVState if payload contains minimal info
+                timestamp = payload.get("timestamp")
+                try:
+                    if timestamp and timestamp.endswith("Z"):
+                        timestamp = timestamp.replace("Z", "+00:00")
+                    ts_obj = datetime.fromisoformat(timestamp) if timestamp else timezone.now()
+                except Exception:
+                    ts_obj = timezone.now()
+
+                AGVState.objects.create(
+                    agv=agv,
+                    timestamp=ts_obj,
+                    header_id=0,
+                    last_node_id=payload.get("lastNodeId") or payload.get("nodeId") or "",
+                    last_node_sequence_id=payload.get("lastNodeSequenceId", 0) or 0,
+                    driving=False,
+                    paused=False,
+                    operating_mode=payload.get("operatingMode") or "AUTOMATIC",
+                    battery_state=payload.get("batteryState") or {"batteryCharge": 100, "charging": False},
+                    agv_position=payload.get("agvPosition") or {"mapId": payload.get("mapId") or "default_map"},
+                    errors=[],
+                    safety_state={"eStop": "NONE", "fieldViolation": False},
+                    loads=[],
+                    information={},
+                )
+
+                logger.info(f"Auto-registered AGV {manufacturer}/{serial_number} from connection message")
+            except Exception as exc:
+                logger.error(f"Failed to auto-register AGV {manufacturer}/{serial_number}: {exc}")
 
     def publish_order(self, order):
         """Send order to AGV via MQTT"""
