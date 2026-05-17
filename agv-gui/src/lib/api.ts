@@ -600,3 +600,22 @@ export async function fetchAgvStates(
 
   return response.json()
 }
+
+// Fetch dashboard stats
+export interface DashboardStats {
+  fleet_status: { name: string; value: number }[]
+  battery_levels: { name: string; battery: number }[]
+  order_status: { name: string; value: number }[]
+  tasks_distributed: { name: string; tasks: number }[]
+  order_volume: { time: string; orders: number }[]
+}
+
+export async function fetchDashboardStats(): Promise<DashboardStats> {
+  const response = await fetch(`${API_BASE_URL}/dashboard/stats/`)
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch dashboard stats: ${response.statusText}`)
+  }
+  
+  return response.json()
+}
