@@ -49,7 +49,9 @@ class BatteryManager:
             return
 
         if not current_node_id:
-            print(f"⚠️ AGV {agv.serial_number}: missing current_node_id, skip charging check.")
+            print(
+                f"⚠️ AGV {agv.serial_number}: missing current_node_id, skip charging check."
+            )
             return
 
         # Step 2: If AGV has any ACTIVE/SENT order, it is considered busy.
@@ -134,7 +136,9 @@ class BatteryManager:
         min_distance: float = float("inf")
 
         for station in charging_stations:
-            distance = math.hypot(station.x - current_node.x, station.y - current_node.y)
+            distance = math.hypot(
+                station.x - current_node.x, station.y - current_node.y
+            )
             if distance < min_distance:
                 min_distance = distance
                 closest_station = station

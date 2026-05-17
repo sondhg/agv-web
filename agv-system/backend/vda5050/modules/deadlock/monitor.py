@@ -14,7 +14,9 @@ from vda5050.models import DeadlockEvent, Order
 class DeadlockMonitorService:
     """Track AGV state stream and emit potential deadlock events."""
 
-    def __init__(self, stuck_threshold_s: float = 45.0, position_epsilon_m: float = 0.2):
+    def __init__(
+        self, stuck_threshold_s: float = 45.0, position_epsilon_m: float = 0.2
+    ):
         self.stuck_threshold_s = stuck_threshold_s
         self.position_epsilon_m = position_epsilon_m
         self._snapshots: dict[str, dict] = {}
@@ -150,7 +152,9 @@ class DeadlockMonitorService:
 
         if not current_order_id:
             if prev:
-                self._resolve_open_potential(agv, prev.get("order_id", ""), "order_cleared")
+                self._resolve_open_potential(
+                    agv, prev.get("order_id", ""), "order_cleared"
+                )
                 self._snapshots.pop(serial, None)
             return None
 
@@ -189,7 +193,9 @@ class DeadlockMonitorService:
             return None
 
         if prev and prev.get("order_id"):
-            self._resolve_open_potential(agv, prev.get("order_id", ""), "state_progressed")
+            self._resolve_open_potential(
+                agv, prev.get("order_id", ""), "state_progressed"
+            )
 
         self._snapshots[serial] = {
             "order_id": current_order_id,

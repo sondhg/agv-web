@@ -29,17 +29,19 @@ class BidCalculator:
     - Baseline Normalization: Normalize against ideal baseline cost
     - Hybrid Objective: Combine MiniSum (efficiency) and MiniMax (load balancing)
     - Battery Constraints: Eligibility and battery-based penalty
-    
+
     Attributes:
         graph_engine (GraphEngine): Engine for path computation
         transport_calculator (TransportCalculator): Calculator for physical metrics
         baseline_calculator (BaselineCalculator): Calculator for baseline normalization
     """
-    
-    def __init__(self, graph_engine=None, transport_calculator=None, baseline_calculator=None):
+
+    def __init__(
+        self, graph_engine=None, transport_calculator=None, baseline_calculator=None
+    ):
         """
         Initialize calculator with dependencies.
-        
+
         Args:
             graph_engine: GraphEngine instance
             transport_calculator: TransportCalculator instance
@@ -48,13 +50,12 @@ class BidCalculator:
         self.graph_engine = graph_engine or GraphEngine()
         self.transport_calculator = transport_calculator or TransportCalculator()
         self.baseline_calculator = baseline_calculator or BaselineCalculator(
-            self.graph_engine, 
-            self.transport_calculator
+            self.graph_engine, self.transport_calculator
         )
         self.reservation_service = ReservationService()
         self.greedy_strategy = GreedyBidStrategy(self)
         self.ssi_strategy = SsiMarginalBidStrategy(self)
-        
+
         logger.debug("BidCalculator initialized")
 
     CHARGING_RELEASE_THRESHOLD = 80.0
@@ -63,20 +64,20 @@ class BidCalculator:
     def _build_greedy_invalid_result(battery, start_node):
         """Build a standardized invalid result for greedy-distance bidding."""
         return {
-            'bid_final': float('inf'),
-            'distance_to_pickup_m': float('inf'),
-            'battery': battery,
-            'start_node': start_node,
-            'is_valid': False,
+            "bid_final": float("inf"),
+            "distance_to_pickup_m": float("inf"),
+            "battery": battery,
+            "start_node": start_node,
+            "is_valid": False,
         }
 
     def get_agv_current_state(self, agv):
         """
         Get the AGV's latest runtime state.
-        
+
         Args:
             agv: AGV instance
-            
+
         Returns:
             dict: {
                 'current_node': str,
@@ -84,38 +85,40 @@ class BidCalculator:
                 'is_valid': bool
             } or None if no state exists
         """
-        last_state = AGVState.objects.filter(agv=agv).order_by('-timestamp').first()
-        
+        last_state = AGVState.objects.filter(agv=agv).order_by("-timestamp").first()
+
         if not last_state:
             logger.warning(f"AGV {agv.serial_number}: No state data available")
             return None
-        
+
         current_node = last_state.last_node_id
         battery_state = last_state.battery_state or {}
 
-        current_battery = battery_state.get('batteryCharge')
+        current_battery = battery_state.get("batteryCharge")
         if current_battery is None:
-            current_battery = battery_state.get('charge', 0)
+            current_battery = battery_state.get("charge", 0)
 
-        is_charging = bool(battery_state.get('charging', False))
-        
-        logger.debug(f"AGV {agv.serial_number}: Node={current_node}, Battery={current_battery}%")
-        
+        is_charging = bool(battery_state.get("charging", False))
+
+        logger.debug(
+            f"AGV {agv.serial_number}: Node={current_node}, Battery={current_battery}%"
+        )
+
         return {
-            'current_node': current_node,
-            'battery': current_battery,
-            'is_charging': is_charging,
-            'is_valid': True
+            "current_node": current_node,
+            "battery": current_battery,
+            "is_charging": is_charging,
+            "is_valid": True,
         }
-    
+
     @classmethod
     def check_battery_constraint(cls, battery_percent, is_charging=False):
         """
         Check battery constraints.
-        
+
         Args:
             battery_percent: Current battery percentage
-            
+
         Returns:
             dict: {
                 'is_acceptable': bool,  # Whether the AGV can participate
@@ -128,32 +131,20 @@ class BidCalculator:
                 f"AGV charging lock: {battery_percent}% < "
                 f"{cls.CHARGING_RELEASE_THRESHOLD}% - REJECTED"
             )
-            return {
-                'is_acceptable': False,
-                'penalty_factor': float('inf')
-            }
+            return {"is_acceptable": False, "penalty_factor": float("inf")}
 
         if battery_percent < 10.0:
             # Below 10%: hard reject.
             logger.warning(f"Critical battery: {battery_percent}% - REJECTED")
-            return {
-                'is_acceptable': False,
-                'penalty_factor': float('inf')
-            }
+            return {"is_acceptable": False, "penalty_factor": float("inf")}
         elif battery_percent < 30.0:
             # Below 30%: accepted with strong penalty.
             penalty = 1.5
             logger.info(f"Low battery: {battery_percent}% - Penalty x{penalty}")
-            return {
-                'is_acceptable': True,
-                'penalty_factor': penalty
-            }
+            return {"is_acceptable": True, "penalty_factor": penalty}
         else:
             # Healthy battery: no penalty.
-            return {
-                'is_acceptable': True,
-                'penalty_factor': 1.0
-            }
+            return {"is_acceptable": True, "penalty_factor": 1.0}
 
     def calculate_greedy_distance_bid(self, agv, pickup_node_id):
         """
@@ -178,7 +169,7 @@ class BidCalculator:
             }
         """
         return self.greedy_strategy.calculate_bid(agv, pickup_node_id)
-    
+
     def calculate_wait_cost(self, agv, current_node, load_kg):
         """
         Estimate queue cost from all pending orders (SENT/ACTIVE/QUEUED).
@@ -197,16 +188,15 @@ class BidCalculator:
             }
         """
         pending_orders = Order.objects.filter(
-            agv=agv,
-            status__in=['SENT', 'ACTIVE', 'QUEUED']
-        ).order_by('created_at')
+            agv=agv, status__in=["SENT", "ACTIVE", "QUEUED"]
+        ).order_by("created_at")
 
         if not pending_orders.exists():
             return {
-                'start_node': current_node,
-                'wait_time_s': 0.0,
-                'queue_energy_kj': 0.0,
-                'num_pending': 0,
+                "start_node": current_node,
+                "wait_time_s": 0.0,
+                "queue_energy_kj": 0.0,
+                "num_pending": 0,
             }
 
         pending_count = pending_orders.count()
@@ -220,14 +210,14 @@ class BidCalculator:
                 if not order.nodes:
                     continue
 
-                end_node = order.nodes[-1]['nodeId']
+                end_node = order.nodes[-1]["nodeId"]
 
                 if chain_node == end_node:
                     continue
 
                 distance, turns = self.graph_engine.get_path_info(chain_node, end_node)
 
-                if distance != float('inf') and distance > 0:
+                if distance != float("inf") and distance > 0:
                     energy, travel_time = self.transport_calculator.calculate_metrics(
                         distance, load_kg, turns
                     )
@@ -237,7 +227,9 @@ class BidCalculator:
                 chain_node = end_node
 
             except Exception as e:
-                logger.error(f"Error calculating queue cost for {agv.serial_number}: {e}")
+                logger.error(
+                    f"Error calculating queue cost for {agv.serial_number}: {e}"
+                )
                 continue
 
         logger.debug(
@@ -247,22 +239,24 @@ class BidCalculator:
         )
 
         return {
-            'start_node': chain_node,
-            'wait_time_s': total_wait_time,
-            'queue_energy_kj': total_queue_energy,
-            'num_pending': pending_count,
+            "start_node": chain_node,
+            "wait_time_s": total_wait_time,
+            "queue_energy_kj": total_queue_energy,
+            "num_pending": pending_count,
         }
-    
-    def calculate_marginal_cost(self, agv, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG):
+
+    def calculate_marginal_cost(
+        self, agv, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG
+    ):
         """
         Calculate marginal cost for one AGV.
-        
+
         Args:
             agv: AGV instance
             pickup_node_id: Pickup node
             delivery_node_id: Delivery node (if None, only travel to pickup)
             load_kg: Payload weight (kg)
-            
+
         Returns:
             dict: {
                 'energy_marginal': float,
@@ -276,7 +270,9 @@ class BidCalculator:
             agv, pickup_node_id, delivery_node_id=delivery_node_id, load_kg=load_kg
         )
 
-    def estimate_conflict_penalty(self, agv, start_node, pickup_node_id, delivery_node_id=None):
+    def estimate_conflict_penalty(
+        self, agv, start_node, pickup_node_id, delivery_node_id=None
+    ):
         """Estimate waiting/deadlock risk from active reservations for candidate route."""
         leg1_nodes, leg1_edges = self.graph_engine.get_path(start_node, pickup_node_id)
         if not leg1_nodes:
@@ -289,7 +285,9 @@ class BidCalculator:
         all_edges = leg1_edges
 
         if delivery_node_id:
-            leg2_nodes, leg2_edges = self.graph_engine.get_path(pickup_node_id, delivery_node_id)
+            leg2_nodes, leg2_edges = self.graph_engine.get_path(
+                pickup_node_id, delivery_node_id
+            )
             if not leg2_nodes:
                 return {
                     "conflict_count": 999,
@@ -303,12 +301,14 @@ class BidCalculator:
             nodes=all_nodes,
             edges=all_edges,
         )
-        conflict_count = len(conflict_result.node_conflicts) + len(conflict_result.edge_conflicts)
+        conflict_count = len(conflict_result.node_conflicts) + len(
+            conflict_result.edge_conflicts
+        )
         return {
             "conflict_count": conflict_count,
             "conflict_penalty": conflict_count * WAIT_CONFLICT_PENALTY,
         }
-    
+
     def calculate_bid_score(self, marginal_cost_result, epsilon=None):
         """
         Compute bid score from marginal cost (Hybrid Objective / SSI-DMAS).
@@ -324,19 +324,28 @@ class BidCalculator:
         Returns:
             float: Bid score (lower is better)
         """
-        return self.ssi_strategy.calculate_bid_score(marginal_cost_result, epsilon=epsilon)
-    
-    def calculate_full_bid(self, agv, pickup_node_id, delivery_node_id=None, load_kg=DEFAULT_LOAD_KG, epsilon=None):
+        return self.ssi_strategy.calculate_bid_score(
+            marginal_cost_result, epsilon=epsilon
+        )
+
+    def calculate_full_bid(
+        self,
+        agv,
+        pickup_node_id,
+        delivery_node_id=None,
+        load_kg=DEFAULT_LOAD_KG,
+        epsilon=None,
+    ):
         """
         Calculate the full bid for one AGV (all-in-one).
-        
+
         Args:
             agv: AGV instance
             pickup_node_id: Pickup node
             delivery_node_id: Delivery node (if None, only travel to pickup)
             load_kg: Payload weight (kg)
             epsilon: Override hybrid parameter (None = use default)
-            
+
         Returns:
             dict: {
                 'bid_final': float,

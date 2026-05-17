@@ -450,4 +450,3 @@ class GraphEdge(models.Model):
 
     def __str__(self):
         return f"{self.start_node.node_id} -> {self.end_node.node_id}"
-

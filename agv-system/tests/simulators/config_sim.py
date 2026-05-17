@@ -18,18 +18,18 @@ MAP_ID = "map_1"
 API_BASE_URL = os.environ.get("API_BASE_URL", "http://127.0.0.1:8000/api")
 
 # ==================== Timing ====================
-STATE_PUBLISH_INTERVAL = 1.0    # seconds - VDA5050 recommends 1 Hz
-MOVEMENT_TICK_INTERVAL = 0.1    # seconds - physics simulation step
-STATUS_PRINT_INTERVAL = 10.0    # seconds - fleet status display
+STATE_PUBLISH_INTERVAL = 1.0  # seconds - VDA5050 recommends 1 Hz
+MOVEMENT_TICK_INTERVAL = 0.1  # seconds - physics simulation step
+STATUS_PRINT_INTERVAL = 10.0  # seconds - fleet status display
 
 # ==================== Graph Node Positions ====================
 # Must match backend/vda5050/management/commands/setup_test_graph.py
 NODE_POSITIONS = {
-    "Node_A": {"x": 0,  "y": 0},
+    "Node_A": {"x": 0, "y": 0},
     "Node_B": {"x": 10, "y": 0},
     "Node_C": {"x": 20, "y": 0},
     "Node_D": {"x": 30, "y": 0},
-    "Node_E": {"x": 0,  "y": 10},
+    "Node_E": {"x": 0, "y": 10},
     "Node_F": {"x": 10, "y": 10},
     "Node_G": {"x": 20, "y": 10},
     "Node_H": {"x": 30, "y": 10},
@@ -60,12 +60,14 @@ MIXED_BATTERY_FLEET = {
     "AGV_01": {"node": "Node_A", "battery": 95.0},
     "AGV_02": {"node": "Node_B", "battery": 50.0},
     "AGV_03": {"node": "Node_C", "battery": 25.0},  # Low battery - penalty
-    "AGV_04": {"node": "Node_D", "battery": 8.0},   # Critical - rejected
-    "AGV_05": {"node": "Node_E", "battery": 15.0},   # Low battery - penalty
+    "AGV_04": {"node": "Node_D", "battery": 8.0},  # Critical - rejected
+    "AGV_05": {"node": "Node_E", "battery": 15.0},  # Low battery - penalty
 }
 
 
-def generate_fleet(count: int, start_battery: float = 95.0, battery_step: float = 5.0) -> dict:
+def generate_fleet(
+    count: int, start_battery: float = 95.0, battery_step: float = 5.0
+) -> dict:
     """
     Generate a fleet configuration with the specified number of AGVs.
 

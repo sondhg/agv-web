@@ -29,11 +29,11 @@ def generate_continuous_shift_scenario(duration_hours=2):
     Phù hợp với bản đồ large_factory_1 để test Battery Cycling và Endurance.
     """
     total_seconds = int(duration_hours * 3600)
-    
+
     # 1. Định nghĩa các điểm bốc/dỡ hàng theo đúng Large Factory Map
     pickup_nodes = ["WH_Pick_1", "WH_Pick_2", "WH_Pick_3"]
     delivery_nodes = ["Assy_Drop_1", "Assy_Drop_2"]
-    
+
     # 2. Bố trí đội xe (9 xe) xuất phát từ các điểm khác nhau với 100% pin
     fleet = {
         "AGV_01": {"node": "Charge_01", "battery": 100.0},
@@ -46,22 +46,22 @@ def generate_continuous_shift_scenario(duration_hours=2):
         "AGV_08": {"node": "Aisle_S", "battery": 95.0},
         "AGV_09": {"node": "Aisle_N", "battery": 20.0},
     }
-    
+
     tasks = []
     current_delay = 0.0
-    
+
     # 3. Vòng lặp sinh Task liên tục cho đến khi hết ca làm việc
     while current_delay < total_seconds:
         pickup = random.choice(pickup_nodes)
         delivery = random.choice(delivery_nodes)
-        
+
         # Thêm task vào danh sách với thời gian trễ tương ứng
         tasks.append(_make_task(pickup, delivery, delay=current_delay))
-        
+
         # Thời gian giữa các order mới (Random từ 15 giây đến 45 giây có 1 order)
         # Bạn có thể giảm con số này xuống nếu muốn test nhà máy công suất cao (vd: 10, 20)
         current_delay += random.randint(10, 20)
-        
+
     return {
         "name": "continuous_shift",
         "description": (
@@ -71,8 +71,10 @@ def generate_continuous_shift_scenario(duration_hours=2):
         ),
         "fleet": fleet,
         "tasks": tasks,
-        "timeout_s": total_seconds + 300, # Cộng dư 5 phút để hoàn thành các task cuối cùng
+        "timeout_s": total_seconds
+        + 300,  # Cộng dư 5 phút để hoàn thành các task cuối cùng
     }
+
 
 # Gọi hàm để sinh ra dictionary scenario (ở đây set mặc định là 2 tiếng)
 SCENARIO_CONTINUOUS_SHIFT = generate_continuous_shift_scenario(duration_hours=2)

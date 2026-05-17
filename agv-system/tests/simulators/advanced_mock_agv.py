@@ -122,10 +122,14 @@ class AdvancedMockAGV:
         self._client.on_message = self._on_message
 
         # Topics
-        self._topic_conn = f"uagv/v2/{self.manufacturer}/{self.serial_number}/connection"
+        self._topic_conn = (
+            f"uagv/v2/{self.manufacturer}/{self.serial_number}/connection"
+        )
         self._topic_state = f"uagv/v2/{self.manufacturer}/{self.serial_number}/state"
         self._topic_order = f"uagv/v2/{self.manufacturer}/{self.serial_number}/order"
-        self._topic_action = f"uagv/v2/{self.manufacturer}/{self.serial_number}/instantActions"
+        self._topic_action = (
+            f"uagv/v2/{self.manufacturer}/{self.serial_number}/instantActions"
+        )
 
         # Threading
         self._running = False
@@ -212,7 +216,9 @@ class AdvancedMockAGV:
                     self.op_state = self.STATE_PAUSED
                 elif action_type == "stopPause":
                     self.paused = False
-                    if self.order_nodes and self.current_node_index < len(self.order_nodes):
+                    if self.order_nodes and self.current_node_index < len(
+                        self.order_nodes
+                    ):
                         self.driving = True
                         self.op_state = self.STATE_MOVING
                     else:
@@ -330,8 +336,12 @@ class AdvancedMockAGV:
         else:
             # Interpolate position linearly from start to target
             ratio = self._move_progress / self._move_distance
-            self.x = self._move_start_x + (self._move_target_x - self._move_start_x) * ratio
-            self.y = self._move_start_y + (self._move_target_y - self._move_start_y) * ratio
+            self.x = (
+                self._move_start_x + (self._move_target_x - self._move_start_x) * ratio
+            )
+            self.y = (
+                self._move_start_y + (self._move_target_y - self._move_start_y) * ratio
+            )
 
     def _arrive_at_node(self, node: dict):
         """Handle arrival at a node."""
@@ -443,9 +453,9 @@ class AdvancedMockAGV:
     def _build_state_message(self) -> dict:
         return {
             "headerId": self._header_counter,
-            "timestamp": datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[
+                :-3
+            ]
             + "Z",
             "version": VDA_VERSION,
             "manufacturer": self.manufacturer,
@@ -491,9 +501,9 @@ class AdvancedMockAGV:
     def _publish_connection(self, status: str):
         payload = {
             "headerId": self._header_counter,
-            "timestamp": datetime.now(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%S.%f"
-            )[:-3]
+            "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[
+                :-3
+            ]
             + "Z",
             "version": VDA_VERSION,
             "manufacturer": self.manufacturer,
@@ -534,9 +544,7 @@ class AdvancedMockAGV:
         self._client.loop_start()
 
         # Physics thread (fast tick)
-        self._physics_thread = threading.Thread(
-            target=self._physics_loop, daemon=True
-        )
+        self._physics_thread = threading.Thread(target=self._physics_loop, daemon=True)
         self._physics_thread.start()
 
         # State publishing thread (1 Hz)

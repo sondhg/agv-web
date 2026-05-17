@@ -73,7 +73,9 @@ class MetricsCollector:
         # MQTT client for monitoring state messages
         self._mqtt_client: Optional[mqtt.Client] = None
 
-        logger.info(f"MetricsCollector initialized: scenario={scenario_name}, output={output_dir}")
+        logger.info(
+            f"MetricsCollector initialized: scenario={scenario_name}, output={output_dir}"
+        )
 
     # ==================== Data Collection ====================
 
@@ -201,7 +203,10 @@ class MetricsCollector:
                     )
         else:
             self._deadlock_check_states[serial] = {
-                "node": node, "driving": driving, "since": now, "reported": False
+                "node": node,
+                "driving": driving,
+                "since": now,
+                "reported": False,
             }
 
     # ==================== Export ====================
@@ -267,8 +272,7 @@ class MetricsCollector:
         ]
 
         all_agvs = sorted(
-            set(self.agv_task_count.keys())
-            | set(self.agv_total_flow_time.keys())
+            set(self.agv_task_count.keys()) | set(self.agv_total_flow_time.keys())
         )
 
         with open(filepath, "w", newline="", encoding="utf-8") as f:
@@ -280,10 +284,16 @@ class MetricsCollector:
                     {
                         "agv": agv,
                         "tasks_completed": count,
-                        "total_flow_time_s": round(self.agv_total_flow_time.get(agv, 0), 2),
+                        "total_flow_time_s": round(
+                            self.agv_total_flow_time.get(agv, 0), 2
+                        ),
                         "total_energy_pct": round(self.agv_total_energy.get(agv, 0), 3),
-                        "total_distance_m": round(self.agv_total_distance.get(agv, 0), 2),
-                        "total_wait_time_s": round(self.agv_total_wait_time.get(agv, 0), 2),
+                        "total_distance_m": round(
+                            self.agv_total_distance.get(agv, 0), 2
+                        ),
+                        "total_wait_time_s": round(
+                            self.agv_total_wait_time.get(agv, 0), 2
+                        ),
                         "avg_flow_time_s": round(
                             self.agv_total_flow_time.get(agv, 0) / max(count, 1), 2
                         ),
@@ -308,7 +318,7 @@ class MetricsCollector:
         # Coefficient of Variation (CV) - lower is more balanced
         if mean > 0 and len(counts) > 1:
             variance = sum((c - mean) ** 2 for c in counts) / len(counts)
-            std_dev = variance ** 0.5
+            std_dev = variance**0.5
             cv = std_dev / mean
         else:
             std_dev = 0
@@ -327,7 +337,7 @@ class MetricsCollector:
             d_mean = sum(distances) / max(len(distances), 1)
             if d_mean > 0 and len(distances) > 1:
                 d_var = sum((d - d_mean) ** 2 for d in distances) / len(distances)
-                cv_dist = (d_var ** 0.5) / d_mean
+                cv_dist = (d_var**0.5) / d_mean
             else:
                 cv_dist = 0
             writer.writerow(["cv_distance", round(cv_dist, 4)])
@@ -338,11 +348,13 @@ class MetricsCollector:
             writer.writerow([])
             writer.writerow(["agv", "tasks_completed", "distance_m"])
             for agv in all_agvs:
-                writer.writerow([
-                    agv,
-                    self.agv_task_count.get(agv, 0),
-                    round(self.agv_total_distance.get(agv, 0), 2),
-                ])
+                writer.writerow(
+                    [
+                        agv,
+                        self.agv_task_count.get(agv, 0),
+                        round(self.agv_total_distance.get(agv, 0), 2),
+                    ]
+                )
 
         logger.info(f"  -> {filepath} (CV={cv:.4f})")
         return filepath
@@ -351,8 +363,12 @@ class MetricsCollector:
         """Export task assignment history."""
         filepath = os.path.join(self.output_dir, f"{prefix}_assignments.csv")
         headers = [
-            "order_id", "winner_agv", "pickup_node", "delivery_node",
-            "bidding_time_ms", "timestamp",
+            "order_id",
+            "winner_agv",
+            "pickup_node",
+            "delivery_node",
+            "bidding_time_ms",
+            "timestamp",
         ]
 
         with open(filepath, "w", newline="", encoding="utf-8") as f:
@@ -368,7 +384,9 @@ class MetricsCollector:
         """Export fleet-level summary."""
         filepath = os.path.join(self.output_dir, f"{prefix}_fleet_summary.csv")
 
-        sim_duration = self._simulation_end - self._simulation_start if self._simulation_end else 0
+        sim_duration = (
+            self._simulation_end - self._simulation_start if self._simulation_end else 0
+        )
         total_tasks = sum(self.agv_task_count.values())
         total_flow_time = sum(self.agv_total_flow_time.values())
         total_energy = sum(self.agv_total_energy.values())
@@ -385,11 +403,13 @@ class MetricsCollector:
         energy_per_task = total_energy / max(total_tasks, 1)
 
         # CV of distance
-        distances = [self.agv_total_distance.get(a, 0) for a in self.agv_task_count.keys()]
+        distances = [
+            self.agv_total_distance.get(a, 0) for a in self.agv_task_count.keys()
+        ]
         if distances and len(distances) > 1:
             d_mean = sum(distances) / len(distances)
             d_var = sum((d - d_mean) ** 2 for d in distances) / len(distances)
-            cv_distance = (d_var ** 0.5) / d_mean if d_mean > 0 else 0
+            cv_distance = (d_var**0.5) / d_mean if d_mean > 0 else 0
         else:
             cv_distance = 0
 
@@ -413,9 +433,19 @@ class MetricsCollector:
             writer.writerow(["makespan_s", round(makespan, 2)])
             writer.writerow(["total_tasks_completed", total_tasks])
             writer.writerow(["total_flow_time_s", round(total_flow_time, 2)])
-            writer.writerow(["avg_flow_time_per_task_s", round(total_flow_time / max(total_tasks, 1), 2)])
+            writer.writerow(
+                [
+                    "avg_flow_time_per_task_s",
+                    round(total_flow_time / max(total_tasks, 1), 2),
+                ]
+            )
             writer.writerow(["total_wait_time_s", round(total_wait, 2)])
-            writer.writerow(["throughput_tasks_per_min", round(total_tasks / max(sim_duration / 60, 0.01), 2)])
+            writer.writerow(
+                [
+                    "throughput_tasks_per_min",
+                    round(total_tasks / max(sim_duration / 60, 0.01), 2),
+                ]
+            )
             # --- Energy ---
             writer.writerow(["total_energy_consumed_pct", round(total_energy, 3)])
             writer.writerow(["energy_per_task_pct", round(energy_per_task, 3)])
@@ -436,7 +466,9 @@ class MetricsCollector:
 
     def print_summary(self):
         """Print a formatted summary to console."""
-        sim_duration = self._simulation_end - self._simulation_start if self._simulation_end else 0
+        sim_duration = (
+            self._simulation_end - self._simulation_start if self._simulation_end else 0
+        )
         total_tasks = sum(self.agv_task_count.values())
         total_flow = sum(self.agv_total_flow_time.values())
         total_energy = sum(self.agv_total_energy.values())
@@ -458,7 +490,9 @@ class MetricsCollector:
         print(f"    Total Flow Time:    {total_flow:.1f}s")
         print(f"    Avg Flow/Task:      {total_flow / max(total_tasks, 1):.1f}s")
         print(f"    Total Wait Time:    {total_wait:.1f}s")
-        print(f"    Throughput:         {total_tasks / max(sim_duration / 60, 0.01):.2f} tasks/min")
+        print(
+            f"    Throughput:         {total_tasks / max(sim_duration / 60, 0.01):.2f} tasks/min"
+        )
 
         # 2. Energy
         print(f"  [Energy]")
@@ -474,7 +508,9 @@ class MetricsCollector:
             print(f"    Min Bidding Time:   {min(self.bidding_times_ms):.1f} ms")
 
         print(f"{'─' * 70}")
-        print(f"  {'AGV':<10} {'Tasks':>6} {'FlowTime':>10} {'Energy':>8} {'Distance':>10} {'Wait':>8}")
+        print(
+            f"  {'AGV':<10} {'Tasks':>6} {'FlowTime':>10} {'Energy':>8} {'Distance':>10} {'Wait':>8}"
+        )
         print(f"  {'─' * 56}")
 
         for agv in sorted(self.agv_task_count.keys()):
@@ -492,14 +528,16 @@ class MetricsCollector:
         if counts:
             mean = sum(counts) / len(counts)
             variance = sum((c - mean) ** 2 for c in counts) / len(counts)
-            cv_tasks = (variance ** 0.5) / mean if mean > 0 else 0
+            cv_tasks = (variance**0.5) / mean if mean > 0 else 0
             distances = list(self.agv_total_distance.values())
             d_mean = sum(distances) / len(distances)
             d_var = sum((d - d_mean) ** 2 for d in distances) / len(distances)
-            cv_dist = (d_var ** 0.5) / d_mean if d_mean > 0 else 0
+            cv_dist = (d_var**0.5) / d_mean if d_mean > 0 else 0
             print(f"{'─' * 70}")
             print(f"  [Load Balance & Robustness]")
-            print(f"    CV (Tasks):    {cv_tasks:.4f}  (0=perfect, <0.3=good, >0.5=poor)")
+            print(
+                f"    CV (Tasks):    {cv_tasks:.4f}  (0=perfect, <0.3=good, >0.5=poor)"
+            )
             print(f"    CV (Distance): {cv_dist:.4f}")
             print(f"    Stuck Events:  {self.stuck_event_count}")
             print(f"    Deadlock Count (legacy): {self.deadlock_count}")
