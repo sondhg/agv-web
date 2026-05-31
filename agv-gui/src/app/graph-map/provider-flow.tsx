@@ -96,20 +96,20 @@ const nodeOrigin: [number, number] = [0.5, 0]
 
 // Helper function to generate a safe, unique ID for NEW nodes
 function generateNewNodeId(currentNodes: Node[]): string {
-  let maxNumber = 0;
+  let maxNumber = 0
 
   // Look through all existing nodes to find the highest "Node X" number
-  currentNodes.forEach(node => {
-    const match = node.id.match(/^Node (\d+)$/);
+  currentNodes.forEach((node) => {
+    const match = node.id.match(/^Node (\d+)$/)
     if (match) {
-      const num = parseInt(match[1], 10);
+      const num = parseInt(match[1], 10)
       if (num > maxNumber) {
-        maxNumber = num;
+        maxNumber = num
       }
     }
-  });
+  })
 
-  return `Node ${maxNumber + 1}`;
+  return `Node ${maxNumber + 1}`
 }
 
 import { createPortal } from "react-dom"
@@ -507,7 +507,7 @@ const AddNodeOnEdgeDrop = () => {
           >
             <MiniMap nodeStrokeWidth={3} zoomable pannable />
             <Panel position="top-left">
-              <div className="space-y-2 rounded-lg border bg-white p-4 shadow-md">
+              <div className="space-y-2 rounded-lg border p-4 shadow-md">
                 <div className="flex gap-2">
                   <Button
                     onClick={handleAddNode}
@@ -528,7 +528,7 @@ const AddNodeOnEdgeDrop = () => {
                   <Button
                     onClick={handleCancel}
                     disabled={!hasChanges || isSaving || isLoading}
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                   >
                     Cancel
@@ -546,7 +546,7 @@ const AddNodeOnEdgeDrop = () => {
               </div>
             </Panel>
             <Panel position="top-right">
-              <div className="rounded-lg border bg-white p-4 shadow-md">
+              <div className="rounded-lg border p-4 shadow-md">
                 <div>Change background grid:</div>
                 <div className="flex gap-2">
                   {Object.values(BackgroundVariant).map((v) => (
@@ -564,12 +564,12 @@ const AddNodeOnEdgeDrop = () => {
         <Sidebar nodes={nodes} setNodes={setNodes} />
         {mounted && document.getElementById("node-table-portal-target")
           ? createPortal(
-            <div>
-              <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
-              <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
-            </div>,
-            document.getElementById("node-table-portal-target")!
-          )
+              <div>
+                <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
+                <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
+              </div>,
+              document.getElementById("node-table-portal-target")!
+            )
           : null}
       </div>
     </>
