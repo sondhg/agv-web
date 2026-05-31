@@ -1,0 +1,144 @@
+"use client"
+
+import type { ColumnDef } from "@tanstack/react-table"
+import {
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table"
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+import type { Node } from "@xyflow/react"
+import { getNodeColor } from "./utils"
+
+interface NodeTableProps {
+  nodes: Node[]
+  updateNodeType: (
+    nodeId: string,
+    nodeType: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
+  ) => void
+}
+
+export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
+  const columns: ColumnDef<Node>[] = [
+    {
+      accessorKey: "id",
+      header: "Node ID",
+    },
+    {
+      accessorKey: "data.dbId",
+      header: "DB ID",
+      cell: ({ row }) => row.original.data?.dbId ?? "New Node",
+    },
+    {
+      accessorKey: "position.x",
+      header: "X Position",
+      cell: ({ row }) => row.original.position.x.toFixed(2),
+    },
+    {
+      accessorKey: "position.y",
+      header: "Y Position",
+      cell: ({ row }) => row.original.position.y.toFixed(2),
+    },
+    {
+      accessorKey: "data.node_type",
+      header: "Node Type",
+      cell: ({ row }) => {
+        const nodeType = (row.original.data?.node_type as string) || "DEFAULT"
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className="h-4 w-4 rounded-full border border-gray-300 shadow-sm"
+              style={{ backgroundColor: getNodeColor(nodeType) }}
+            />
+            <Select
+              value={nodeType}
+              onValueChange={(
+                val: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
+              ) => updateNodeType(row.original.id, val)}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DEFAULT">Default / Transit</SelectItem>
+                <SelectItem value="PICKUP">Pickup Station</SelectItem>
+                <SelectItem value="DELIVERY">Delivery Station</SelectItem>
+                <SelectItem value="CHARGING">Charging Station</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      },
+    },
+  ]
+
+  const table = useReactTable({
+    data: nodes,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  })
+
+  return (
+    <div className="rounded-md border bg-white shadow">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => {
+                return (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                  </TableHead>
+                )
+              })}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() && "selected"}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={columns.length} className="h-24 text-center">
+                No nodes found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}

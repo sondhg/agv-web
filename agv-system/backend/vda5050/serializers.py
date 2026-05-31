@@ -56,11 +56,12 @@ class GraphNodeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GraphNode
-        fields = ["id", "node_id", "map_id", "x", "y", "theta", "description"]
+        fields = ["id", "node_id", "map_id", "x", "y", "theta", "description", "node_type"]
         read_only_fields = ["id"]
         extra_kwargs = {
             "theta": {"required": False, "default": 0.0},
             "description": {"required": False, "default": ""},
+            "node_type": {"required": False, "default": "DEFAULT"},
         }
 
     def validate_node_id(self, value):

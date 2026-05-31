@@ -97,7 +97,7 @@ const nodeOrigin: [number, number] = [0.5, 0]
 // Helper function to generate a safe, unique ID for NEW nodes
 function generateNewNodeId(currentNodes: Node[]): string {
   let maxNumber = 0;
-  
+
   // Look through all existing nodes to find the highest "Node X" number
   currentNodes.forEach(node => {
     const match = node.id.match(/^Node (\d+)$/);
@@ -454,8 +454,21 @@ const AddNodeOnEdgeDrop = () => {
       nodeId: string,
       nodeType: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
     ) => {
-      setNodes((nds) =>
-        nds.map((n) => {
+      setNodes((nds) => {
+        const target = nds.find((n) => n.id === nodeId)
+        const dbId = target?.data?.dbId
+
+        // if these lines are uncommented, the node type will be updated as soon as user choose an option in the dropdown. no need to click 'Save' button in the map
+        // -------
+        if (dbId && typeof dbId === "number") {
+          updateGraphNode(dbId, { node_type: nodeType }).catch((err) => {
+            console.error("Failed to save node type:", err)
+            toast.error("Failed to save node type")
+          })
+        }
+        // -------
+
+        return nds.map((n) => {
           if (n.id === nodeId) {
             return {
               ...n,
@@ -468,7 +481,7 @@ const AddNodeOnEdgeDrop = () => {
           }
           return n
         })
-      )
+      })
     },
     [setNodes]
   )
@@ -551,12 +564,12 @@ const AddNodeOnEdgeDrop = () => {
         <Sidebar nodes={nodes} setNodes={setNodes} />
         {mounted && document.getElementById("node-table-portal-target")
           ? createPortal(
-              <div>
-                <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
-                <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
-              </div>,
-              document.getElementById("node-table-portal-target")!
-            )
+            <div>
+              <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
+              <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
+            </div>,
+            document.getElementById("node-table-portal-target")!
+          )
           : null}
       </div>
     </>

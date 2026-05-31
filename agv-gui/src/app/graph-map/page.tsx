@@ -15,6 +15,7 @@ export default function GraphMapPage() {
       <div className="h-screen w-full border-2 border-black">
         <ProviderFlow />
       </div>
+      <div id="node-table-portal-target" className="mt-8" />
     </div>
   )
 }
