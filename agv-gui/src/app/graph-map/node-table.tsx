@@ -43,21 +43,6 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
       cell: ({ row }) => <div className="font-semibold">{row.original.id}</div>,
     },
     {
-      accessorKey: "data.dbId",
-      header: "DB ID",
-      cell: ({ row }) => row.original.data?.dbId ?? "New Node",
-    },
-    {
-      accessorKey: "position.x",
-      header: "X Position",
-      cell: ({ row }) => row.original.position.x.toFixed(2),
-    },
-    {
-      accessorKey: "position.y",
-      header: "Y Position",
-      cell: ({ row }) => row.original.position.y.toFixed(2),
-    },
-    {
       accessorKey: "data.node_type",
       header: "Node Type",
       cell: ({ row }) => {
@@ -65,7 +50,7 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
         return (
           <div className="flex items-center gap-3">
             <div
-              className="h-4 w-4 rounded-full border border-gray-300 shadow-sm"
+              className="h-4 w-4 rounded-full shadow-sm"
               style={{ backgroundColor: getNodeColor(nodeType) }}
             />
             <Select
@@ -107,6 +92,21 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
           </div>
         )
       },
+    },
+    {
+      accessorKey: "data.dbId",
+      header: "DB ID",
+      cell: ({ row }) => row.original.data?.dbId ?? "New Node",
+    },
+    {
+      accessorKey: "position.x",
+      header: "X Position",
+      cell: ({ row }) => row.original.position.x.toFixed(2),
+    },
+    {
+      accessorKey: "position.y",
+      header: "Y Position",
+      cell: ({ row }) => row.original.position.y.toFixed(2),
     },
   ]
 
