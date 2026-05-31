@@ -16,11 +16,24 @@ import {
   Line,
   ResponsiveContainer,
 } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { fetchDashboardStats, type DashboardStats } from "@/lib/api"
 import { AlertCircle, RefreshCw } from "lucide-react"
 
-const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#6366f1"]
+const COLORS = [
+  "#10b981",
+  "#3b82f6",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#6366f1",
+]
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -34,7 +47,9 @@ export default function DashboardPage() {
       setStats(data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard stats")
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard stats"
+      )
     } finally {
       setLoading(false)
     }
@@ -78,7 +93,9 @@ export default function DashboardPage() {
   return (
     <div className="container mx-auto space-y-6 py-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Analytics Dashboard</h1>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Analytics Dashboard
+        </h1>
         <p className="text-muted-foreground">
           Real-time insights and system-wide verification
         </p>
@@ -105,7 +122,10 @@ export default function DashboardPage() {
                     dataKey="value"
                   >
                     {(stats?.fleet_status || []).map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -130,11 +150,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="name" />
                   <YAxis domain={[0, 100]} />
                   <Tooltip />
-                  <Bar
-                    dataKey="battery"
-                    fill="#3b82f6"
-                    radius={[4, 4, 0, 0]}
-                  >
+                  <Bar dataKey="battery" fill="#3b82f6" radius={[4, 4, 0, 0]}>
                     {(stats?.battery_levels || []).map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
@@ -173,7 +189,10 @@ export default function DashboardPage() {
                     label
                   >
                     {(stats?.order_status || []).map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={COLORS[index % COLORS.length]}
+                      />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -188,12 +207,17 @@ export default function DashboardPage() {
         <Card className="col-span-1 lg:col-span-2">
           <CardHeader>
             <CardTitle>Tasks Distributed per AGV</CardTitle>
-            <CardDescription>Completed tasks for load balancing verification</CardDescription>
+            <CardDescription>
+              Completed tasks for load balancing verification
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.tasks_distributed || []} layout="vertical">
+                <BarChart
+                  data={stats?.tasks_distributed || []}
+                  layout="vertical"
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
                   <YAxis dataKey="name" type="category" width={100} />

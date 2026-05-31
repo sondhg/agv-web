@@ -35,13 +35,31 @@ import { toast } from "sonner"
 
 const MAP_ID = "map_1"
 
+import { NodeTable } from "./node-table"
+import { getNodeColor } from "./utils"
+
 // Helper function to convert backend GraphNode to ReactFlow Node
 function graphNodeToReactFlowNode(graphNode: GraphNode): Node {
   return {
     id: graphNode.node_id,
-    data: { label: graphNode.node_id, dbId: graphNode.id },
+    data: {
+      label: graphNode.node_id,
+      dbId: graphNode.id,
+      node_type: graphNode.node_type,
+    },
     position: { x: graphNode.x, y: graphNode.y },
-    ...nodeDefaults,
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    style: {
+      backgroundColor: getNodeColor(graphNode.node_type),
+      width: 50,
+      height: 50,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "1px solid #222",
+      borderRadius: "8px",
+    },
   }
 }
 
@@ -63,53 +81,38 @@ const nodeDefaults = {
   targetPosition: Position.Left,
   style: {
     // borderRadius: "100%",
-    backgroundColor: "#fff",
+    backgroundColor: getNodeColor("DEFAULT"),
     width: 50,
     height: 50,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    border: "1px solid #222",
+    borderRadius: "8px",
   },
 }
 
 const nodeOrigin: [number, number] = [0.5, 0]
 
-// Helper function to renumber nodes to maintain consecutive IDs
-function renumberNodes(
-  currentNodes: Node[],
-  currentEdges: Edge[]
-): { nodes: Node[]; edges: Edge[] } {
-  // Sort nodes by their current numeric ID to maintain order
-  const sortedNodes = [...currentNodes].sort((a, b) => {
-    const numA = parseInt(a.id.replace("Node ", ""))
-    const numB = parseInt(b.id.replace("Node ", ""))
-    return numA - numB
-  })
+// Helper function to generate a safe, unique ID for NEW nodes
+function generateNewNodeId(currentNodes: Node[]): string {
+  let maxNumber = 0;
 
-  // Create mapping from old ID to new ID
-  const idMapping: Record<string, string> = {}
-  sortedNodes.forEach((node, index) => {
-    const newId = `Node ${index + 1}`
-    idMapping[node.id] = newId
-  })
+  // Look through all existing nodes to find the highest "Node X" number
+  currentNodes.forEach(node => {
+    const match = node.id.match(/^Node (\d+)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
 
-  // Renumber nodes
-  const renumberedNodes = sortedNodes.map((node, index) => ({
-    ...node,
-    id: `Node ${index + 1}`,
-    data: { ...node.data, label: `Node ${index + 1}` },
-  }))
-
-  // Update edges to use new node IDs
-  const renumberedEdges = currentEdges.map((edge) => ({
-    ...edge,
-    id: `e${idMapping[edge.source]}-${idMapping[edge.target]}`,
-    source: idMapping[edge.source],
-    target: idMapping[edge.target],
-  }))
-
-  return { nodes: renumberedNodes, edges: renumberedEdges }
+  return `Node ${maxNumber + 1}`;
 }
+
+import { createPortal } from "react-dom"
 
 const AddNodeOnEdgeDrop = () => {
   const reactFlowWrapper = useRef(null)
@@ -124,25 +127,6 @@ const AddNodeOnEdgeDrop = () => {
   const [error, setError] = useState<string | null>(null)
 
   const { screenToFlowPosition } = useReactFlow()
-
-  // Renumber nodes whenever they change (add/delete)
-  useEffect(() => {
-    if (!isLoading && nodes.length > 0) {
-      const { nodes: renumberedNodes, edges: renumberedEdges } = renumberNodes(
-        nodes,
-        edges
-      )
-      // Only update if IDs actually changed
-      const idsChanged = nodes.some(
-        (node, idx) => node.id !== renumberedNodes[idx]?.id
-      )
-      if (idsChanged) {
-        setNodes(renumberedNodes)
-        setEdges(renumberedEdges)
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes.length, isLoading])
 
   // Track changes whenever nodes or edges change
   useEffect(() => {
@@ -218,8 +202,7 @@ const AddNodeOnEdgeDrop = () => {
       // when a connection is dropped on the pane it's not valid
       if (!connectionState.isValid && connectionState.fromNode) {
         // we need to remove the wrapper bounds, in order to get the correct position
-        // Use a temporary ID - it will be renumbered automatically
-        const tempId = `Node ${Date.now()}`
+        const tempId = generateNewNodeId(nodes)
         const fromNodeId = connectionState.fromNode.id
         const { clientX, clientY } =
           "changedTouches" in event ? event.changedTouches[0] : event
@@ -229,7 +212,7 @@ const AddNodeOnEdgeDrop = () => {
             x: clientX,
             y: clientY,
           }),
-          data: { label: tempId },
+          data: { label: tempId, node_type: "DEFAULT" },
           origin: [0.5, 0.0] as [number, number],
           ...nodeDefaults,
         }
@@ -247,11 +230,11 @@ const AddNodeOnEdgeDrop = () => {
         )
       }
     },
-    [screenToFlowPosition, setNodes, setEdges]
+    [screenToFlowPosition, setNodes, setEdges, nodes]
   )
 
   const handleAddNode = useCallback(() => {
-    const tempId = `Node ${Date.now()}`
+    const tempId = generateNewNodeId(nodes)
     const position = screenToFlowPosition({
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
@@ -259,29 +242,29 @@ const AddNodeOnEdgeDrop = () => {
     const newNode: Node = {
       id: tempId,
       position,
-      data: { label: tempId },
+      data: { label: tempId, node_type: "DEFAULT" },
       origin: [0.5, 0.0] as [number, number],
       ...nodeDefaults,
     }
     setNodes((nds) => nds.concat(newNode))
-  }, [screenToFlowPosition, setNodes])
+  }, [screenToFlowPosition, setNodes, nodes])
 
   const onPaneDoubleClick = useCallback(
     (event: React.MouseEvent) => {
-      const tempId = `Node ${Date.now()}`
+      const tempId = generateNewNodeId(nodes)
       const newNode: Node = {
         id: tempId,
         position: screenToFlowPosition({
           x: event.clientX,
           y: event.clientY,
         }),
-        data: { label: tempId },
+        data: { label: tempId, node_type: "DEFAULT" },
         origin: [0.5, 0.0] as [number, number],
         ...nodeDefaults,
       }
       setNodes((nds) => nds.concat(newNode))
     },
-    [screenToFlowPosition, setNodes]
+    [screenToFlowPosition, setNodes, nodes]
   )
 
   const handleSave = async () => {
@@ -318,15 +301,16 @@ const AddNodeOnEdgeDrop = () => {
 
       // Find nodes to update (has dbId and exists in both original and current)
       const nodesToUpdate = nodes.filter(
-        (n): n is Node & { data: { dbId: number } } => {
+        (n): n is Node & { data: { dbId: number; node_type?: string } } => {
           if (!n.data || !("dbId" in n.data) || typeof n.data.dbId !== "number")
             return false
           const original = originalNodesByDbId.get(n.data.dbId)
           if (!original) return false
-          // Check if position changed
+          // Check if position or type changed
           return (
             n.position.x !== original.position.x ||
-            n.position.y !== original.position.y
+            n.position.y !== original.position.y ||
+            n.data.node_type !== original.data?.node_type
           )
         }
       )
@@ -385,6 +369,7 @@ const AddNodeOnEdgeDrop = () => {
         await updateGraphNode(dbId, {
           x: node.position.x,
           y: node.position.y,
+          node_type: (node.data.node_type as string) || "DEFAULT",
         })
       }
 
@@ -416,6 +401,7 @@ const AddNodeOnEdgeDrop = () => {
           y: node.position.y,
           theta: 0.0,
           description: "",
+          node_type: (node.data?.node_type as string) || "DEFAULT",
         })
       }
 
@@ -463,79 +449,130 @@ const AddNodeOnEdgeDrop = () => {
     BackgroundVariant.Dots
   )
 
+  const updateNodeType = useCallback(
+    (
+      nodeId: string,
+      nodeType: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
+    ) => {
+      setNodes((nds) => {
+        const target = nds.find((n) => n.id === nodeId)
+        const dbId = target?.data?.dbId
+
+        // if these lines are uncommented, the node type will be updated as soon as user choose an option in the dropdown. no need to click 'Save' button in the map
+        // -------
+        if (dbId && typeof dbId === "number") {
+          updateGraphNode(dbId, { node_type: nodeType }).catch((err) => {
+            console.error("Failed to save node type:", err)
+            toast.error("Failed to save node type")
+          })
+        }
+        // -------
+
+        return nds.map((n) => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              data: { ...n.data, node_type: nodeType },
+              style: {
+                ...n.style,
+                backgroundColor: getNodeColor(nodeType),
+              },
+            }
+          }
+          return n
+        })
+      })
+    },
+    [setNodes]
+  )
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
   return (
-    <div className="flex h-full flex-col md:flex-row" ref={reactFlowWrapper}>
-      <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectEnd={onConnectEnd}
-          onPaneDoubleClick={onPaneDoubleClick}
-          fitView
-          fitViewOptions={{ padding: 2 }}
-          nodeOrigin={nodeOrigin}
-        >
-          <MiniMap nodeStrokeWidth={3} zoomable pannable />
-          <Panel position="top-left">
-            <div className="space-y-2 rounded-lg border bg-white p-4 shadow-md">
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleAddNode}
-                  disabled={isLoading}
-                  variant="secondary"
-                  size="sm"
-                >
-                  Add Node
-                </Button>
-                <Button
-                  onClick={handleSave}
-                  disabled={!hasChanges || isSaving || isLoading}
-                  variant={hasChanges ? "default" : "outline"}
-                  size="sm"
-                >
-                  {isSaving ? "Saving..." : "Save"}
-                </Button>
-                <Button
-                  onClick={handleCancel}
-                  disabled={!hasChanges || isSaving || isLoading}
-                  variant="outline"
-                  size="sm"
-                >
-                  Cancel
-                </Button>
-              </div>
-              {isLoading && (
-                <div className="text-xs text-gray-600">Loading graph...</div>
-              )}
-              {error && (
-                <div className="text-xs text-red-600">Error: {error}</div>
-              )}
-              {hasChanges && !isLoading && (
-                <div className="text-xs text-orange-600">Unsaved changes</div>
-              )}
-            </div>
-          </Panel>
-          <Panel position="top-right">
-            <div className="rounded-lg border bg-white p-4 shadow-md">
-              <div>Change background grid:</div>
-              <div className="flex gap-2">
-                {Object.values(BackgroundVariant).map((v) => (
-                  <Button key={v} onClick={() => setBackgroundVariant(v)}>
-                    {v}
+    <>
+      <div className="flex h-full flex-col md:flex-row" ref={reactFlowWrapper}>
+        <div className="flex-1">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onConnectEnd={onConnectEnd}
+            onPaneDoubleClick={onPaneDoubleClick}
+            fitView
+            fitViewOptions={{ padding: 2 }}
+            nodeOrigin={nodeOrigin}
+          >
+            <MiniMap nodeStrokeWidth={3} zoomable pannable />
+            <Panel position="top-left">
+              <div className="space-y-2 rounded-lg border bg-white p-4 shadow-md">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleAddNode}
+                    disabled={isLoading}
+                    variant="secondary"
+                    size="sm"
+                  >
+                    Add Node
                   </Button>
-                ))}
+                  <Button
+                    onClick={handleSave}
+                    disabled={!hasChanges || isSaving || isLoading}
+                    variant={hasChanges ? "default" : "outline"}
+                    size="sm"
+                  >
+                    {isSaving ? "Saving..." : "Save"}
+                  </Button>
+                  <Button
+                    onClick={handleCancel}
+                    disabled={!hasChanges || isSaving || isLoading}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {isLoading && (
+                  <div className="text-xs text-gray-600">Loading graph...</div>
+                )}
+                {error && (
+                  <div className="text-xs text-red-600">Error: {error}</div>
+                )}
+                {hasChanges && !isLoading && (
+                  <div className="text-xs text-orange-600">Unsaved changes</div>
+                )}
               </div>
-            </div>
-          </Panel>
-          <Controls />
-          <Background variant={backgroundVariant} />
-        </ReactFlow>
+            </Panel>
+            <Panel position="top-right">
+              <div className="rounded-lg border bg-white p-4 shadow-md">
+                <div>Change background grid:</div>
+                <div className="flex gap-2">
+                  {Object.values(BackgroundVariant).map((v) => (
+                    <Button key={v} onClick={() => setBackgroundVariant(v)}>
+                      {v}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </Panel>
+            <Controls />
+            <Background variant={backgroundVariant} />
+          </ReactFlow>
+        </div>
+        <Sidebar nodes={nodes} setNodes={setNodes} />
+        {mounted && document.getElementById("node-table-portal-target")
+          ? createPortal(
+            <div>
+              <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
+              <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
+            </div>,
+            document.getElementById("node-table-portal-target")!
+          )
+          : null}
       </div>
-      <Sidebar nodes={nodes} setNodes={setNodes} />
-    </div>
+    </>
   )
 }
 

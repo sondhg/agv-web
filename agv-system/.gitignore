@@ -62,5 +62,6 @@ coverage.xml
 *.cover
 
 /tests/simulators/results/
+results
 
 /docs/instructions/

@@ -182,6 +182,7 @@ export interface GraphNode {
   y: number
   theta: number
   description: string
+  node_type: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
 }
 
 export interface GraphEdge {
@@ -204,11 +205,9 @@ export interface GraphData {
 /**
  * Fetch all graph nodes
  */
-export async function fetchGraphNodes(
-  mapId?: string
-): Promise<GraphNode[]> {
-  const url = mapId 
-    ? `${API_BASE_URL}/graph/nodes/?map_id=${mapId}` 
+export async function fetchGraphNodes(mapId?: string): Promise<GraphNode[]> {
+  const url = mapId
+    ? `${API_BASE_URL}/graph/nodes/?map_id=${mapId}`
     : `${API_BASE_URL}/graph/nodes/`
   const response = await fetch(url)
 
@@ -222,9 +221,7 @@ export async function fetchGraphNodes(
 /**
  * Fetch all graph edges
  */
-export async function fetchGraphEdges(
-  mapId?: string
-): Promise<GraphEdge[]> {
+export async function fetchGraphEdges(mapId?: string): Promise<GraphEdge[]> {
   const url = mapId
     ? `${API_BASE_URL}/graph/edges/?map_id=${mapId}`
     : `${API_BASE_URL}/graph/edges/`
@@ -240,9 +237,7 @@ export async function fetchGraphEdges(
 /**
  * Fetch complete graph (nodes + edges)
  */
-export async function fetchGraph(
-  mapId?: string
-): Promise<GraphData> {
+export async function fetchGraph(mapId?: string): Promise<GraphData> {
   const [nodes, edges] = await Promise.all([
     fetchGraphNodes(mapId),
     fetchGraphEdges(mapId),
@@ -612,10 +607,10 @@ export interface DashboardStats {
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const response = await fetch(`${API_BASE_URL}/dashboard/stats/`)
-  
+
   if (!response.ok) {
     throw new Error(`Failed to fetch dashboard stats: ${response.statusText}`)
   }
-  
+
   return response.json()
 }
