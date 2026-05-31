@@ -34,6 +34,7 @@ import Sidebar from "./sidebar"
 import { toast } from "sonner"
 
 const MAP_ID = "map_1"
+const COORDINATE_SCALE = 7
 
 import { NodeTable } from "./node-table"
 import { getNodeColor } from "./utils"
@@ -47,7 +48,10 @@ function graphNodeToReactFlowNode(graphNode: GraphNode): Node {
       dbId: graphNode.id,
       node_type: graphNode.node_type,
     },
-    position: { x: graphNode.x, y: graphNode.y },
+    position: {
+      x: graphNode.x * COORDINATE_SCALE,
+      y: graphNode.y * COORDINATE_SCALE,
+    },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     style: {
@@ -367,8 +371,8 @@ const AddNodeOnEdgeDrop = () => {
       for (const node of nodesToUpdate) {
         const dbId = node.data.dbId
         await updateGraphNode(dbId, {
-          x: node.position.x,
-          y: node.position.y,
+          x: node.position.x / COORDINATE_SCALE,
+          y: node.position.y / COORDINATE_SCALE,
           node_type: (node.data.node_type as string) || "DEFAULT",
         })
       }
@@ -397,8 +401,8 @@ const AddNodeOnEdgeDrop = () => {
         await createGraphNode({
           node_id: node.id,
           map_id: MAP_ID,
-          x: node.position.x,
-          y: node.position.y,
+          x: node.position.x / COORDINATE_SCALE,
+          y: node.position.y / COORDINATE_SCALE,
           theta: 0.0,
           description: "",
           node_type: (node.data?.node_type as string) || "DEFAULT",
