@@ -77,10 +77,10 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="DEFAULT">Default / Transit</SelectItem>
-                <SelectItem value="PICKUP">Pickup Station</SelectItem>
-                <SelectItem value="DELIVERY">Delivery Station</SelectItem>
-                <SelectItem value="CHARGING">Charging Station</SelectItem>
+                <SelectItem value="DEFAULT" style={{ color: getNodeColor("DEFAULT") }}>Default / Transit</SelectItem>
+                <SelectItem value="PICKUP" style={{ color: getNodeColor("PICKUP") }}>Pickup Station</SelectItem>
+                <SelectItem value="DELIVERY" style={{ color: getNodeColor("DELIVERY") }}>Delivery Station</SelectItem>
+                <SelectItem value="CHARGING" style={{ color: getNodeColor("CHARGING") }}>Charging Station</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -96,7 +96,7 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
   })
 
   return (
-    <div className="rounded-md border bg-white shadow">
+    <div className="rounded-md border shadow">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -107,9 +107,9 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                   </TableHead>
                 )
               })}

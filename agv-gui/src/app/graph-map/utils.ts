@@ -8,6 +8,6 @@ export const getNodeColor = (type?: string) => {
       return "#eab308" // yellow-500
     case "DEFAULT":
     default:
-      return "#fff" // white
+      return "#808080" // white
   }
 }
