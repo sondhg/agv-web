@@ -48,6 +48,7 @@ class SimulationRunner:
         self.fleet_config = scenario["fleet"]
         self.tasks = scenario["tasks"]
         self.timeout = scenario.get("timeout_s", 300)
+        self.manual_mode = bool(scenario.get("manual_mode", False))
         self.epsilon = epsilon
 
         # Include epsilon in output directory name for easy comparison
@@ -74,8 +75,11 @@ class SimulationRunner:
             self._wait_for_fleet_ready()
             self.metrics.start_simulation_timer()
             self.metrics.start_mqtt_monitor(list(self.fleet_config.keys()))
-            self._dispatch_tasks()
-            self._wait_for_completion()
+            if self.manual_mode or not self.tasks:
+                self._wait_for_manual_interaction()
+            else:
+                self._dispatch_tasks()
+                self._wait_for_completion()
             self.metrics.stop_simulation_timer()
         except KeyboardInterrupt:
             logger.warning("Simulation interrupted by user")
@@ -246,6 +250,37 @@ class SimulationRunner:
         logger.warning(
             f"\nTimeout after {elapsed:.0f}s. Completed: {completed}/{expected_tasks}"
         )
+
+    def _wait_for_manual_interaction(self):
+        """Keep AGVs online for manual UI interaction until timeout."""
+        logger.info(
+            f"\nManual mode enabled. Keeping {len(self.agvs)} AGVs online "
+            f"for {self.timeout}s so you can create orders from the UI..."
+        )
+
+        start = time.time()
+        last_status_print = 0
+
+        while time.time() - start < self.timeout:
+            now = time.time()
+            if now - last_status_print >= STATUS_PRINT_INTERVAL:
+                elapsed = now - start
+                print(f"\n--- Manual Mode @ {elapsed:.0f}s | AGVs online: {len(self.agvs)} ---")
+                print(f"  {'AGV':<10} {'State':<22} {'Node':<10} {'Battery':>8} {'Order':<18}")
+                print(f"  {'─' * 70}")
+                for agv in self.agvs:
+                    s = agv.status_summary
+                    print(
+                        f"  {s['serial']:<10} {s['state']:<22} {s['node']:<10} "
+                        f"{s['battery']:>7.1f}% {s['order']:<18}"
+                    )
+                print()
+                last_status_print = now
+
+            time.sleep(1)
+
+        elapsed = time.time() - start
+        logger.warning(f"\nManual mode timeout after {elapsed:.0f}s")
 
     def _print_fleet_status(self, completed: int, total: int):
         """Print current fleet status."""

@@ -15,6 +15,21 @@ def _make_task(pickup: str, delivery: str, delay: float = 0.0) -> dict:
     return {"pickup_node_id": pickup, "delivery_node_id": delivery, "delay_s": delay}
 
 
+def _make_online_only_fleet() -> dict:
+    """Return a 9-AGV fleet that stays online without auto-dispatched tasks."""
+    return {
+        "AGV_01": {"node": "Charge_01", "battery": 100.0},
+        "AGV_02": {"node": "Charge_02", "battery": 100.0},
+        "AGV_03": {"node": "Depot_Gate", "battery": 92.0},
+        "AGV_04": {"node": "Main_S", "battery": 88.0},
+        "AGV_05": {"node": "Main_C", "battery": 84.0},
+        "AGV_06": {"node": "Main_N", "battery": 80.0},
+        "AGV_07": {"node": "Aisle_S", "battery": 76.0},
+        "AGV_08": {"node": "Aisle_C", "battery": 72.0},
+        "AGV_09": {"node": "Aisle_N", "battery": 68.0},
+    }
+
+
 # ==================== Scenario 1: Continuous Shift (Endurance) ====================
 def generate_continuous_shift_scenario(
     duration_hours=0.5,
@@ -237,11 +252,26 @@ SCENARIO_DEADLOCK = {
     "timeout_s": 900,
 }
 
+# ==================== Scenario 3: Online Only / Manual UI ====================
+SCENARIO_ONLINE_ONLY_9 = {
+    "name": "online_only_9agvs",
+    "description": (
+        "Starts 9 AGVs online and keeps them available for manual UI actions. "
+        "No tasks are auto-dispatched, so the terminal stays up while the backend "
+        "logs auction winners, bid scores, and deadlock events triggered from the UI."
+    ),
+    "fleet": _make_online_only_fleet(),
+    "tasks": [],
+    "timeout_s": 86400,
+    "manual_mode": True,
+}
+
 # ==================== Registry ====================
 ALL_SCENARIOS = {
     "deadlock": SCENARIO_DEADLOCK,
     "continuous_shift": SCENARIO_CONTINUOUS_SHIFT,
     "continuous_shift_stress_30m": SCENARIO_CONTINUOUS_SHIFT_STRESS_30M,
+    "online_only_9agvs": SCENARIO_ONLINE_ONLY_9,
 }
 
 
