@@ -23,7 +23,7 @@ export default function Sidebar({ nodes, setNodes }: SidebarProps) {
   }, [setNodes])
 
   return (
-    <aside className="flex flex-col border-l border-gray-200 bg-white p-4 text-xs md:h-auto md:w-1/5 md:max-w-[250px]">
+    <aside className="flex flex-col border-l p-4 text-xs md:h-auto md:w-1/5 md:max-w-[250px]">
       <div className="mb-1 font-bold">Zoom & pan transform</div>
       <div className="mb-5">
         [{transform[0].toFixed(2)}, {transform[1].toFixed(2)},{" "}
@@ -33,7 +33,7 @@ export default function Sidebar({ nodes, setNodes }: SidebarProps) {
       <div className="mb-1 font-bold">Nodes</div>
       <div className="mb-2 space-y-1">
         {nodes.map((node) => (
-          <div key={node.id} className="text-gray-700">
+          <div key={node.id}>
             {node.id} - x: {node.position.x.toFixed(2)}, y:{" "}
             {node.position.y.toFixed(2)}
           </div>
