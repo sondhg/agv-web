@@ -40,6 +40,58 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
     {
       accessorKey: "id",
       header: "Node ID",
+      cell: ({ row }) => <div className="font-semibold">{row.original.id}</div>,
+    },
+    {
+      accessorKey: "data.node_type",
+      header: "Node Type",
+      cell: ({ row }) => {
+        const nodeType = (row.original.data?.node_type as string) || "DEFAULT"
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className="h-4 w-4 rounded-full shadow-sm"
+              style={{ backgroundColor: getNodeColor(nodeType) }}
+            />
+            <Select
+              value={nodeType}
+              onValueChange={(
+                val: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
+              ) => updateNodeType(row.original.id, val)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select type" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                <SelectItem
+                  value="DEFAULT"
+                  style={{ color: getNodeColor("DEFAULT") }}
+                >
+                  Default / Transit
+                </SelectItem>
+                <SelectItem
+                  value="PICKUP"
+                  style={{ color: getNodeColor("PICKUP") }}
+                >
+                  Pickup Station
+                </SelectItem>
+                <SelectItem
+                  value="DELIVERY"
+                  style={{ color: getNodeColor("DELIVERY") }}
+                >
+                  Delivery Station
+                </SelectItem>
+                <SelectItem
+                  value="CHARGING"
+                  style={{ color: getNodeColor("CHARGING") }}
+                >
+                  Charging Station
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      },
     },
     {
       accessorKey: "data.dbId",
@@ -55,37 +107,6 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
       accessorKey: "position.y",
       header: "Y Position",
       cell: ({ row }) => row.original.position.y.toFixed(2),
-    },
-    {
-      accessorKey: "data.node_type",
-      header: "Node Type",
-      cell: ({ row }) => {
-        const nodeType = (row.original.data?.node_type as string) || "DEFAULT"
-        return (
-          <div className="flex items-center gap-3">
-            <div
-              className="h-4 w-4 rounded-full border border-gray-300 shadow-sm"
-              style={{ backgroundColor: getNodeColor(nodeType) }}
-            />
-            <Select
-              value={nodeType}
-              onValueChange={(
-                val: "DEFAULT" | "PICKUP" | "DELIVERY" | "CHARGING"
-              ) => updateNodeType(row.original.id, val)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="DEFAULT" style={{ color: getNodeColor("DEFAULT") }}>Default / Transit</SelectItem>
-                <SelectItem value="PICKUP" style={{ color: getNodeColor("PICKUP") }}>Pickup Station</SelectItem>
-                <SelectItem value="DELIVERY" style={{ color: getNodeColor("DELIVERY") }}>Delivery Station</SelectItem>
-                <SelectItem value="CHARGING" style={{ color: getNodeColor("CHARGING") }}>Charging Station</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )
-      },
     },
   ]
 
@@ -107,9 +128,9 @@ export function NodeTable({ nodes, updateNodeType }: NodeTableProps) {
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 )
               })}

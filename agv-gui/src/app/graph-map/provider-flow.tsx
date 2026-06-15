@@ -34,9 +34,15 @@ import Sidebar from "./sidebar"
 import { toast } from "sonner"
 
 const MAP_ID = "map_1"
+const COORDINATE_SCALE = 7
 
 import { NodeTable } from "./node-table"
 import { getNodeColor } from "./utils"
+import { FloatingEdge } from "./floating-edge"
+
+const edgeTypes = {
+  straight: FloatingEdge,
+}
 
 // Helper function to convert backend GraphNode to ReactFlow Node
 function graphNodeToReactFlowNode(graphNode: GraphNode): Node {
@@ -47,7 +53,10 @@ function graphNodeToReactFlowNode(graphNode: GraphNode): Node {
       dbId: graphNode.id,
       node_type: graphNode.node_type,
     },
-    position: { x: graphNode.x, y: graphNode.y },
+    position: {
+      x: graphNode.x * COORDINATE_SCALE,
+      y: graphNode.y * COORDINATE_SCALE,
+    },
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
     style: {
@@ -69,6 +78,7 @@ function graphEdgeToReactFlowEdge(graphEdge: GraphEdge): Edge {
     id: `e${graphEdge.start_node.node_id}-${graphEdge.end_node.node_id}`,
     source: graphEdge.start_node.node_id,
     target: graphEdge.end_node.node_id,
+    type: "straight",
     data: { dbId: graphEdge.id },
     markerEnd: {
       type: MarkerType.ArrowClosed,
@@ -92,24 +102,24 @@ const nodeDefaults = {
   },
 }
 
-const nodeOrigin: [number, number] = [0.5, 0]
+const nodeOrigin: [number, number] = [0.5, 0.5]
 
 // Helper function to generate a safe, unique ID for NEW nodes
 function generateNewNodeId(currentNodes: Node[]): string {
-  let maxNumber = 0;
+  let maxNumber = 0
 
   // Look through all existing nodes to find the highest "Node X" number
-  currentNodes.forEach(node => {
-    const match = node.id.match(/^Node (\d+)$/);
+  currentNodes.forEach((node) => {
+    const match = node.id.match(/^Node (\d+)$/)
     if (match) {
-      const num = parseInt(match[1], 10);
+      const num = parseInt(match[1], 10)
       if (num > maxNumber) {
-        maxNumber = num;
+        maxNumber = num
       }
     }
-  });
+  })
 
-  return `Node ${maxNumber + 1}`;
+  return `Node ${maxNumber + 1}`
 }
 
 import { createPortal } from "react-dom"
@@ -187,6 +197,7 @@ const AddNodeOnEdgeDrop = () => {
         addEdge(
           {
             ...params,
+            type: "straight",
             markerEnd: {
               type: MarkerType.ArrowClosed,
             },
@@ -213,7 +224,7 @@ const AddNodeOnEdgeDrop = () => {
             y: clientY,
           }),
           data: { label: tempId, node_type: "DEFAULT" },
-          origin: [0.5, 0.0] as [number, number],
+          origin: [0.5, 0.5] as [number, number],
           ...nodeDefaults,
         }
 
@@ -223,6 +234,7 @@ const AddNodeOnEdgeDrop = () => {
             id: `e${fromNodeId}-${tempId}`,
             source: fromNodeId,
             target: tempId,
+            type: "straight",
             markerEnd: {
               type: MarkerType.ArrowClosed,
             },
@@ -243,7 +255,7 @@ const AddNodeOnEdgeDrop = () => {
       id: tempId,
       position,
       data: { label: tempId, node_type: "DEFAULT" },
-      origin: [0.5, 0.0] as [number, number],
+      origin: [0.5, 0.5] as [number, number],
       ...nodeDefaults,
     }
     setNodes((nds) => nds.concat(newNode))
@@ -259,7 +271,7 @@ const AddNodeOnEdgeDrop = () => {
           y: event.clientY,
         }),
         data: { label: tempId, node_type: "DEFAULT" },
-        origin: [0.5, 0.0] as [number, number],
+        origin: [0.5, 0.5] as [number, number],
         ...nodeDefaults,
       }
       setNodes((nds) => nds.concat(newNode))
@@ -367,9 +379,14 @@ const AddNodeOnEdgeDrop = () => {
       for (const node of nodesToUpdate) {
         const dbId = node.data.dbId
         await updateGraphNode(dbId, {
-          x: node.position.x,
-          y: node.position.y,
-          node_type: (node.data.node_type as string) || "DEFAULT",
+          x: node.position.x / COORDINATE_SCALE,
+          y: node.position.y / COORDINATE_SCALE,
+          node_type:
+            (node.data.node_type as
+              | "DEFAULT"
+              | "PICKUP"
+              | "DELIVERY"
+              | "CHARGING") || "DEFAULT",
         })
       }
 
@@ -397,11 +414,16 @@ const AddNodeOnEdgeDrop = () => {
         await createGraphNode({
           node_id: node.id,
           map_id: MAP_ID,
-          x: node.position.x,
-          y: node.position.y,
+          x: node.position.x / COORDINATE_SCALE,
+          y: node.position.y / COORDINATE_SCALE,
           theta: 0.0,
           description: "",
-          node_type: (node.data?.node_type as string) || "DEFAULT",
+          node_type:
+            (node.data?.node_type as
+              | "DEFAULT"
+              | "PICKUP"
+              | "DELIVERY"
+              | "CHARGING") || "DEFAULT",
         })
       }
 
@@ -496,18 +518,21 @@ const AddNodeOnEdgeDrop = () => {
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onConnectEnd={onConnectEnd}
+            // @ts-expect-error - onPaneDoubleClick is not in the types but used in older versions
             onPaneDoubleClick={onPaneDoubleClick}
+            defaultEdgeOptions={{ type: "straight" }}
             fitView
             fitViewOptions={{ padding: 2 }}
             nodeOrigin={nodeOrigin}
           >
             <MiniMap nodeStrokeWidth={3} zoomable pannable />
             <Panel position="top-left">
-              <div className="space-y-2 rounded-lg border bg-white p-4 shadow-md">
+              <div className="space-y-2 rounded-lg border p-4 shadow-md">
                 <div className="flex gap-2">
                   <Button
                     onClick={handleAddNode}
@@ -528,7 +553,7 @@ const AddNodeOnEdgeDrop = () => {
                   <Button
                     onClick={handleCancel}
                     disabled={!hasChanges || isSaving || isLoading}
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                   >
                     Cancel
@@ -546,7 +571,7 @@ const AddNodeOnEdgeDrop = () => {
               </div>
             </Panel>
             <Panel position="top-right">
-              <div className="rounded-lg border bg-white p-4 shadow-md">
+              <div className="rounded-lg border p-4 shadow-md">
                 <div>Change background grid:</div>
                 <div className="flex gap-2">
                   {Object.values(BackgroundVariant).map((v) => (
@@ -564,12 +589,12 @@ const AddNodeOnEdgeDrop = () => {
         <Sidebar nodes={nodes} setNodes={setNodes} />
         {mounted && document.getElementById("node-table-portal-target")
           ? createPortal(
-            <div>
-              <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
-              <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
-            </div>,
-            document.getElementById("node-table-portal-target")!
-          )
+              <div>
+                <h2 className="mb-4 text-2xl font-semibold">Node Management</h2>
+                <NodeTable nodes={nodes} updateNodeType={updateNodeType} />
+              </div>,
+              document.getElementById("node-table-portal-target")!
+            )
           : null}
       </div>
     </>
