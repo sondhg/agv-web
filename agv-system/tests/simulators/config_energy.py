@@ -25,7 +25,7 @@ class EnergyConfig:
     BATTERY_LOW_PENALTY: float = 1.5  # Penalty coefficient for marginal cost
 
     # Charging model
-    CHARGE_RATE_PCT_PER_S: float = 0.25  # %/s - Opportunity charging rate
+    CHARGE_RATE_PCT_PER_S: float = 0.5  # %/s - Opportunity charging rate
 
     # Battery nominal capacity (for converting % -> energy units)
     # Default: 1.0 kWh (3600 kJ). Adjust to match real AGV battery.

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 import paho.mqtt.client as mqtt
@@ -11,12 +11,15 @@ from vda5050.graph_engine import GraphEngine
 from vda5050.modules.battery_manager import BatteryManager
 from vda5050.modules.deadlock import DeadlockMonitorService
 from vda5050.modules.reservation import ReservationService
+from django.db import close_old_connections
 
 logger = logging.getLogger(__name__)
 
-
 class Command(BaseCommand):
     help = "Listen to MQTT messages from AGVs (VDA5050 protocol)"
+
+    def _get_vda_timestamp():
+        return datetime.now(dt_timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS("Starting MQTT Listener..."))
@@ -81,6 +84,8 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Connection failed: {rc}"))
 
     def on_message(self, client, userdata, msg):
+        # [CRITICAL FIX] Dọn dẹp connection cũ trước khi query DB
+        close_old_connections()
         try:
             # Topic: uagv/v2/{manufacturer}/{serial_number}/{type}
             parts = msg.topic.split("/")
@@ -598,7 +603,7 @@ class Command(BaseCommand):
 
         payload = {
             "headerId": order.header_id,
-            "timestamp": timezone.now().isoformat(),
+            "timestamp": _get_vda_timestamp(),
             "version": "2.1.0",
             "manufacturer": agv.manufacturer,
             "serialNumber": agv.serial_number,
@@ -628,7 +633,7 @@ class Command(BaseCommand):
         topic = f"uagv/v2/{agv.manufacturer}/{agv.serial_number}/order"
         payload = {
             "headerId": order.header_id,
-            "timestamp": timezone.now().isoformat(),
+            "timestamp": _get_vda_timestamp(),
             "version": "2.1.0",
             "manufacturer": agv.manufacturer,
             "serialNumber": agv.serial_number,
