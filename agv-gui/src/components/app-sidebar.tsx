@@ -73,30 +73,6 @@ const data = {
         },
       ],
     },
-    {
-      title: "Supervise",
-      url: ROUTES.SUPERVISE_TASK_BIDDING,
-      items: [
-        {
-          title: "Task Bidding",
-          url: ROUTES.SUPERVISE_TASK_BIDDING,
-        },
-        {
-          title: "Sensor Data",
-          url: ROUTES.SUPERVISE_SENSOR_DATA,
-        },
-      ],
-    },
-    {
-      title: "Simulate",
-      url: ROUTES.SIMULATE_ROUTING,
-      items: [
-        {
-          title: "Routing",
-          url: ROUTES.SIMULATE_ROUTING,
-        },
-      ],
-    },
   ],
 }
 
